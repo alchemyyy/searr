@@ -23,6 +23,34 @@ const DownloadBlock = ({
   const intl = useIntl();
   const { hasPermission } = useUser();
 
+  const statusBadgeType =
+    downloadItem.trackedDownloadStatus === 'error'
+      ? 'danger'
+      : downloadItem.trackedDownloadStatus === 'warning'
+        ? 'warning'
+        : undefined;
+
+  const stateLabel =
+    downloadItem.trackedDownloadState === 'downloading'
+      ? 'Downloading'
+      : downloadItem.trackedDownloadState === 'importing'
+        ? 'Importing'
+        : downloadItem.trackedDownloadState === 'importPending'
+          ? 'Import Pending'
+          : downloadItem.trackedDownloadState === 'importBlocked'
+            ? 'Import Blocked'
+            : downloadItem.trackedDownloadState === 'failed' ||
+                downloadItem.trackedDownloadState === 'failedPending'
+              ? 'Failed'
+              : downloadItem.trackedDownloadState === 'imported'
+                ? 'Imported'
+                : downloadItem.status;
+
+  const statusWarnings =
+    downloadItem.statusMessages
+      ?.flatMap((sm) => sm.messages ?? [])
+      .filter(Boolean) ?? [];
+
   return (
     <div className="p-4">
       <div className="mb-2 w-56 truncate text-sm sm:w-80 md:w-full">
@@ -65,13 +93,15 @@ const DownloadBlock = ({
         </div>
       </div>
       <div className="flex items-center justify-between text-xs">
-        <span>
+        <span className="flex items-center gap-1">
           {is4k && (
-            <Badge badgeType="warning" className="mr-2">
+            <Badge badgeType="warning" className="mr-1">
               4K
             </Badge>
           )}
-          <Badge className="capitalize">{downloadItem.status}</Badge>
+          <Badge badgeType={statusBadgeType} className="capitalize">
+            {stateLabel}
+          </Badge>
         </span>
         <span>
           {downloadItem.estimatedCompletionTime
@@ -93,6 +123,30 @@ const DownloadBlock = ({
             : ''}
         </span>
       </div>
+      {(downloadItem.downloadClient || downloadItem.indexer) && (
+        <div className="mt-2 flex flex-wrap gap-1 text-xs text-gray-400">
+          {downloadItem.downloadClient && (
+            <span>{downloadItem.downloadClient}</span>
+          )}
+          {downloadItem.downloadClient && downloadItem.indexer && (
+            <span className="text-gray-600">|</span>
+          )}
+          {downloadItem.indexer && <span>{downloadItem.indexer}</span>}
+          {downloadItem.protocol && (
+            <>
+              <span className="text-gray-600">|</span>
+              <span className="capitalize">{downloadItem.protocol}</span>
+            </>
+          )}
+        </div>
+      )}
+      {statusWarnings.length > 0 && (
+        <div className="mt-2 text-xs text-red-400">
+          {statusWarnings.map((msg, i) => (
+            <div key={i}>{msg}</div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

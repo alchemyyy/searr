@@ -48,7 +48,12 @@ export interface QualityProfile {
   name: string;
 }
 
-interface QueueItem {
+export interface QueueStatusMessage {
+  title: string;
+  messages: string[];
+}
+
+export interface QueueItem {
   size: number;
   title: string;
   sizeleft: number;
@@ -62,6 +67,14 @@ interface QueueItem {
   downloadClient: string;
   indexer: string;
   id: number;
+  statusMessages: QueueStatusMessage[];
+}
+
+export interface HealthCheckResult {
+  source: string;
+  type: string;
+  message: string;
+  wikiUrl?: string;
 }
 
 export interface Tag {
@@ -217,6 +230,18 @@ class ServarrBase<QueueItemAppendT> extends ExternalAPI {
       return response.data;
     } catch (e) {
       throw new Error(`[${this.apiName}] Failed to rename tag: ${e.message}`);
+    }
+  };
+
+  public getHealth = async (): Promise<HealthCheckResult[]> => {
+    try {
+      const response = await this.axios.get<HealthCheckResult[]>('/health');
+
+      return response.data;
+    } catch (e) {
+      throw new Error(
+        `[${this.apiName}] Failed to retrieve health status: ${e.message}`
+      );
     }
   };
 

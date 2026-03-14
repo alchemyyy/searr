@@ -48,6 +48,19 @@ export interface JellyfinUserListResponse {
   users: JellyfinUserResponse[];
 }
 
+export interface JellyfinScheduledTask {
+  Name: string;
+  State: 'Idle' | 'Running' | 'Cancelling';
+  CurrentProgressPercentage?: number;
+  Id: string;
+  Key: string;
+  LastExecutionResult?: {
+    Status: 'Completed' | 'Failed' | 'Aborted' | 'Cancelled';
+    StartTimeUtc: string;
+    EndTimeUtc: string;
+  };
+}
+
 interface JellyfinMediaFolder {
   Name: string;
   Id: string;
@@ -448,6 +461,27 @@ class JellyfinAPI extends ExternalAPI {
 
       throw new ApiError(e.response?.status, ApiErrorCode.InvalidAuthToken);
     }
+  }
+
+  public async getScheduledTasks(): Promise<JellyfinScheduledTask[]> {
+    try {
+      return await this.get<JellyfinScheduledTask[]>('/ScheduledTasks');
+    } catch (e) {
+      logger.error(
+        `Something went wrong while getting scheduled tasks from the Jellyfin server: ${e.message}`,
+        { label: 'Jellyfin API', error: e.response?.status }
+      );
+      return [];
+    }
+  }
+
+  public async isLibraryScanRunning(): Promise<boolean> {
+    const tasks = await this.getScheduledTasks();
+    return tasks.some(
+      (t) =>
+        (t.Key === 'RefreshLibrary' || t.Name === 'Scan Media Library') &&
+        t.State === 'Running'
+    );
   }
 
   public async createApiToken(appName: string): Promise<string> {

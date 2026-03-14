@@ -547,6 +547,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
             <StatusBadge
               status={data.mediaInfo?.status}
               downloadItem={data.mediaInfo?.downloadStatus}
+              pipelineStatus={data.mediaInfo?.pipelineStatus}
               title={data.name}
               inProgress={(data.mediaInfo?.downloadStatus ?? []).length > 0}
               tmdbId={data.mediaInfo?.tmdbId}
@@ -568,6 +569,7 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
                 <StatusBadge
                   status={data.mediaInfo?.status4k}
                   downloadItem={data.mediaInfo?.downloadStatus4k}
+                  pipelineStatus={data.mediaInfo?.pipelineStatus4k}
                   title={data.name}
                   is4k
                   inProgress={

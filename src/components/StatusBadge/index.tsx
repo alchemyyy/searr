@@ -9,6 +9,7 @@ import defineMessages from '@app/utils/defineMessages';
 import { MediaStatus } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import type { DownloadingItem } from '@server/lib/downloadtracker';
+import type { PipelineStatus } from '@server/lib/pipelineStatus';
 import { useIntl } from 'react-intl';
 
 const messages = defineMessages('components.StatusBadge', {
@@ -24,6 +25,7 @@ const messages = defineMessages('components.StatusBadge', {
 interface StatusBadgeProps {
   status?: MediaStatus;
   downloadItem?: DownloadingItem[];
+  pipelineStatus?: PipelineStatus | null;
   is4k?: boolean;
   inProgress?: boolean;
   plexUrl?: string;
@@ -36,6 +38,7 @@ interface StatusBadgeProps {
 const StatusBadge = ({
   status,
   downloadItem = [],
+  pipelineStatus,
   is4k = false,
   inProgress = false,
   plexUrl,
@@ -283,10 +286,31 @@ const StatusBadge = ({
         </Tooltip>
       );
 
-    case MediaStatus.PROCESSING:
+    case MediaStatus.PROCESSING: {
+      const pipelineBadgeType =
+        pipelineStatus?.level === 'error'
+          ? 'danger'
+          : pipelineStatus?.level === 'warning'
+            ? 'warning'
+            : 'primary';
+
+      const pipelineLabel = pipelineStatus?.label
+        ? is4k
+          ? `4K ${pipelineStatus.label}`
+          : pipelineStatus.label
+        : intl.formatMessage(is4k ? messages.status4k : messages.status, {
+            status: inProgress
+              ? intl.formatMessage(globalMessages.processing)
+              : intl.formatMessage(globalMessages.requested),
+          });
+
+      const pipelineTooltip =
+        pipelineStatus?.details ||
+        (inProgress ? tooltipContent : mediaLinkDescription);
+
       return (
         <Tooltip
-          content={inProgress ? tooltipContent : mediaLinkDescription}
+          content={inProgress ? tooltipContent : pipelineTooltip}
           className={`${
             inProgress && 'hidden max-h-96 w-96 overflow-y-auto sm:block'
           }`}
@@ -295,7 +319,7 @@ const StatusBadge = ({
           }}
         >
           <Badge
-            badgeType="primary"
+            badgeType={pipelineBadgeType}
             href={mediaLink}
             className={`${
               inProgress && 'relative !bg-gray-700/80 !px-0 hover:!bg-gray-700'
@@ -307,16 +331,7 @@ const StatusBadge = ({
                 inProgress && 'px-2'
               }`}
             >
-              <span>
-                {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
-                  {
-                    status: inProgress
-                      ? intl.formatMessage(globalMessages.processing)
-                      : intl.formatMessage(globalMessages.requested),
-                  }
-                )}
-              </span>
+              <span>{pipelineLabel}</span>
               {inProgress && (
                 <>
                   {mediaType === 'tv' &&
@@ -347,17 +362,32 @@ const StatusBadge = ({
           </Badge>
         </Tooltip>
       );
+    }
 
-    case MediaStatus.PENDING:
+    case MediaStatus.PENDING: {
+      const pendingLabel = pipelineStatus?.label
+        ? is4k
+          ? `4K ${pipelineStatus.label}`
+          : pipelineStatus.label
+        : intl.formatMessage(is4k ? messages.status4k : messages.status, {
+            status: intl.formatMessage(globalMessages.pending),
+          });
+
+      const pendingBadgeType =
+        pipelineStatus?.level === 'error'
+          ? 'danger'
+          : pipelineStatus?.level === 'warning'
+            ? 'warning'
+            : 'warning';
+
       return (
-        <Tooltip content={mediaLinkDescription}>
-          <Badge badgeType="warning" href={mediaLink}>
-            {intl.formatMessage(is4k ? messages.status4k : messages.status, {
-              status: intl.formatMessage(globalMessages.pending),
-            })}
+        <Tooltip content={pipelineStatus?.details || mediaLinkDescription}>
+          <Badge badgeType={pendingBadgeType} href={mediaLink}>
+            {pendingLabel}
           </Badge>
         </Tooltip>
       );
+    }
 
     case MediaStatus.BLOCKLISTED:
       return (
