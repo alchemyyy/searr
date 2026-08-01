@@ -7,6 +7,7 @@ import { getRequestDownloadStatus } from './refreshIntervalHelper';
 const createDownloadItem = (
   overrides: Partial<DownloadingItem> & Pick<DownloadingItem, 'downloadId'>
 ): DownloadingItem => ({
+  serverId: 1,
   mediaType: MediaType.TV,
   externalId: 1,
   size: 1000,

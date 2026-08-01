@@ -72,6 +72,9 @@ export const messages = defineMessages('components.PermissionEdit', {
   viewissues: 'View Issues',
   viewissuesDescription:
     'Grant permission to view media issues reported by other users.',
+  manualimports: 'Manual Imports',
+  manualimportsDescription:
+    'Grant permission to retry completed downloads that require manual import in Sonarr or Radarr.',
   viewrecent: 'View Recently Added',
   viewrecentDescription:
     'Grant permission to view the list of recently added media.',
@@ -338,6 +341,12 @@ export const PermissionEdit = ({
           permission: Permission.VIEW_ISSUES,
         },
       ],
+    },
+    {
+      id: 'manualimports',
+      name: intl.formatMessage(messages.manualimports),
+      description: intl.formatMessage(messages.manualimportsDescription),
+      permission: Permission.MANUAL_IMPORT,
     },
     {
       id: 'manageblocklist',
