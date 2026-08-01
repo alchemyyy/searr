@@ -162,6 +162,13 @@ const RequestCardError = ({ requestData }: RequestCardErrorProps) => {
                         ]
                       }
                       downloadItem={requestDownloadStatus}
+                      pipelineStatus={
+                        requestData.media[
+                          requestData.is4k
+                            ? 'pipelineStatus4k'
+                            : 'pipelineStatus'
+                        ]
+                      }
                       title={intl.formatMessage(messages.unknowntitle)}
                       inProgress={requestDownloadStatus.length > 0}
                       is4k={requestData.is4k}
@@ -463,6 +470,11 @@ const RequestCard = ({ request, onTitleData }: RequestCardProps) => {
                   requestData.media[requestData.is4k ? 'status4k' : 'status']
                 }
                 downloadItem={requestDownloadStatus}
+                pipelineStatus={
+                  requestData.media[
+                    requestData.is4k ? 'pipelineStatus4k' : 'pipelineStatus'
+                  ]
+                }
                 title={isMovie(title) ? title.title : title.name}
                 inProgress={requestDownloadStatus.length > 0}
                 is4k={requestData.is4k}

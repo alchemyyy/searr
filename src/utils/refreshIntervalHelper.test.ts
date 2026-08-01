@@ -15,6 +15,12 @@ const createDownloadItem = (
   timeLeft: '00:05:00',
   estimatedCompletionTime: new Date('2026-01-01T00:00:00Z'),
   title: 'Test Show',
+  trackedDownloadStatus: 'ok',
+  trackedDownloadState: 'downloading',
+  downloadClient: 'qBittorrent',
+  protocol: 'torrent',
+  indexer: 'Test Indexer',
+  statusMessages: [],
   ...overrides,
 });
 
