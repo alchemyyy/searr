@@ -14,6 +14,8 @@ lcov.info
 
 # production
 /build
+/build-output
+/seerr-build.zip
 
 # ignore REST API documentation
 docs/api/*
