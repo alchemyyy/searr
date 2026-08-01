@@ -1,6 +1,32 @@
 import logger from '@server/logger';
 import type { AxiosResponse } from 'axios';
-import ServarrBase from './base';
+import ServarrBase, { type ManualImportResource } from './base';
+
+interface SonarrManualImportResource extends ManualImportResource {
+  series?: {
+    id: number;
+  };
+  seasonNumber?: number;
+  episodes?: {
+    id: number;
+  }[];
+  episodeFileId?: number;
+  releaseType?: string;
+}
+
+interface SonarrManualImportFile {
+  path: string;
+  folderName: string;
+  seriesId: number;
+  episodeIds: number[];
+  episodeFileId?: number;
+  releaseGroup?: string;
+  quality: Record<string, unknown>;
+  languages: Record<string, unknown>[];
+  indexerFlags: number;
+  releaseType?: string;
+  downloadId: string;
+}
 
 export interface SonarrSeason {
   seasonNumber: number;
@@ -120,6 +146,66 @@ class SonarrAPI extends ServarrBase<{
 }> {
   constructor({ url, apiKey }: { url: string; apiKey: string }) {
     super({ url, apiKey, apiName: 'Sonarr', cacheName: 'sonarr' });
+  }
+
+  /** Queues every automatically usable candidate for a failed Sonarr import. */
+  public async manualImport(downloadID: string): Promise<number> {
+    const candidates =
+      await this.getManualImportItems<SonarrManualImportResource>(downloadID);
+    const files: SonarrManualImportFile[] = [];
+
+    candidates.forEach((candidate) => {
+      const episodeIDs: number[] = [];
+      const episodeCount = candidate.episodes?.length ?? 0;
+
+      candidate.episodes?.forEach((episode) => {
+        if (Number.isInteger(episode.id) && episode.id > 0) {
+          episodeIDs.push(episode.id);
+        }
+      });
+
+      if (
+        !candidate.series ||
+        !Number.isInteger(candidate.series.id) ||
+        candidate.series.id <= 0 ||
+        !Number.isInteger(candidate.seasonNumber) ||
+        episodeIDs.length === 0 ||
+        episodeIDs.length !== episodeCount ||
+        !candidate.path ||
+        typeof candidate.folderName !== 'string' ||
+        typeof candidate.size !== 'number' ||
+        candidate.size <= 0 ||
+        !candidate.quality ||
+        !Array.isArray(candidate.languages)
+      ) {
+        return;
+      }
+
+      files.push({
+        path: candidate.path,
+        folderName: candidate.folderName,
+        seriesId: candidate.series.id,
+        episodeIds: episodeIDs,
+        episodeFileId: candidate.episodeFileId,
+        releaseGroup: candidate.releaseGroup,
+        quality: candidate.quality,
+        languages: candidate.languages,
+        indexerFlags: candidate.indexerFlags ?? 0,
+        releaseType: candidate.releaseType,
+        downloadId: downloadID,
+      });
+    });
+
+    if (files.length === 0) {
+      return 0;
+    }
+
+    await this.runCommand('ManualImport', {
+      files,
+      importMode: 'auto',
+    });
+
+    return files.length;
   }
 
   public async getSeries(): Promise<SonarrSeries[]> {

@@ -1,12 +1,24 @@
+import Spinner from '@app/assets/spinner.svg';
 import Badge from '@app/components/Common/Badge';
+import Button from '@app/components/Common/Button';
+import useToasts from '@app/hooks/useToasts';
 import { Permission, useUser } from '@app/hooks/useUser';
 import defineMessages from '@app/utils/defineMessages';
+import { ArrowDownTrayIcon } from '@heroicons/react/24/solid';
+import { MediaType } from '@server/constants/media';
 import type { DownloadingItem } from '@server/lib/downloadtracker';
+import axios from 'axios';
+import { useState, type MouseEvent } from 'react';
 import { FormattedRelativeTime, useIntl } from 'react-intl';
 
 const messages = defineMessages('components.DownloadBlock', {
   estimatedtime: 'Estimated {time}',
   formattedTitle: '{title}: Season {seasonNumber} Episode {episodeNumber}',
+  manualImport: 'Attempt Manual Import',
+  manualImportQueued: 'Manual Import Queued',
+  manualImportSuccess: 'Manual import queued in {serviceName}.',
+  manualImportError:
+    'Manual import could not be queued. A {serviceName} administrator may need to complete it.',
 });
 
 interface DownloadBlockProps {
@@ -42,6 +54,47 @@ const DownloadBlock = ({
 }: DownloadBlockProps) => {
   const intl = useIntl();
   const { hasPermission } = useUser();
+  const { addToast } = useToasts();
+  const [isImporting, setIsImporting] = useState(false);
+  const [queuedDownloadID, setQueuedDownloadID] = useState<string>();
+
+  const serviceType =
+    downloadItem.mediaType === MediaType.MOVIE ? 'radarr' : 'sonarr';
+  const serviceName =
+    downloadItem.mediaType === MediaType.MOVIE ? 'Radarr' : 'Sonarr';
+  const canManualImport =
+    hasPermission(Permission.MANUAL_IMPORT) &&
+    downloadItem.status === 'completed' &&
+    downloadItem.trackedDownloadStatus === 'warning' &&
+    Boolean(downloadItem.downloadId);
+  const isImportQueued = queuedDownloadID === downloadItem.downloadId;
+
+  const handleManualImport = async (
+    event: MouseEvent<HTMLButtonElement>
+  ): Promise<void> => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsImporting(true);
+
+    try {
+      await axios.post(
+        `/api/v1/service/${serviceType}/${downloadItem.serverId}/manual-import`,
+        { downloadId: downloadItem.downloadId }
+      );
+      setQueuedDownloadID(downloadItem.downloadId);
+      addToast(
+        intl.formatMessage(messages.manualImportSuccess, { serviceName }),
+        { appearance: 'success', autoDismiss: true }
+      );
+    } catch {
+      addToast(
+        intl.formatMessage(messages.manualImportError, { serviceName }),
+        { appearance: 'error', autoDismiss: true }
+      );
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const statusBadgeType =
     downloadItem.trackedDownloadStatus === 'error'
@@ -151,6 +204,28 @@ const DownloadBlock = ({
           {statusWarnings.map((message, index) => (
             <div key={`${index}-${message}`}>{message}</div>
           ))}
+        </div>
+      )}
+      {canManualImport && (
+        <div className="mt-3 flex justify-end">
+          <Button
+            buttonType="warning"
+            buttonSize="sm"
+            type="button"
+            disabled={isImporting || isImportQueued}
+            onClick={handleManualImport}
+          >
+            {isImporting ? (
+              <Spinner className="mr-1 h-4 w-4" />
+            ) : (
+              <ArrowDownTrayIcon className="mr-1 h-4 w-4" />
+            )}
+            {intl.formatMessage(
+              isImportQueued
+                ? messages.manualImportQueued
+                : messages.manualImport
+            )}
+          </Button>
         </div>
       )}
     </div>

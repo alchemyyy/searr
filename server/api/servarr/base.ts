@@ -72,6 +72,23 @@ export interface QueueItem {
   statusMessages: QueueStatusMessage[];
 }
 
+export interface ManualImportResource {
+  path: string;
+  folderName: string;
+  size: number;
+  quality?: Record<string, unknown> | null;
+  languages?: Record<string, unknown>[] | null;
+  releaseGroup?: string;
+  indexerFlags?: number;
+  downloadId?: string;
+}
+
+export const isManualImportRequired = (
+  queueItem: Pick<QueueItem, 'status' | 'trackedDownloadStatus'>
+): boolean =>
+  queueItem.status === 'completed' &&
+  queueItem.trackedDownloadStatus === 'warning';
+
 export interface HealthCheckResult {
   source: string;
   type: string;
@@ -214,6 +231,30 @@ class ServarrBase<QueueItemAppendT> extends ExternalAPI {
       );
     }
   };
+
+  /** Retrieves fresh manual-import candidates for a completed download. */
+  protected async getManualImportItems<
+    ManualImportItemT extends ManualImportResource,
+  >(downloadID: string): Promise<ManualImportItemT[]> {
+    try {
+      const response = await this.axios.get<ManualImportItemT[]>(
+        '/manualimport',
+        {
+          params: {
+            downloadId: downloadID,
+            filterExistingFiles: true,
+          },
+        }
+      );
+
+      return response.data;
+    } catch (e) {
+      throw new Error(
+        `[${this.apiName}] Failed to retrieve manual import candidates: ${e.message}`,
+        { cause: e }
+      );
+    }
+  }
 
   public getTags = async (): Promise<Tag[]> => {
     try {
