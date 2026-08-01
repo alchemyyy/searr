@@ -4676,6 +4676,89 @@ paths:
                       restricted:
                         type: boolean
                         example: false
+  /calendar/{filter}/{startDate}/{endDate}:
+    get:
+      summary: Get calendar events
+      description: Returns calendar events from all configured Radarr and Sonarr servers for the given date range and filter.
+      tags:
+        - other
+      parameters:
+        - in: path
+          name: filter
+          required: true
+          schema:
+            type: string
+            enum:
+              - all
+              - tv
+              - movies
+        - in: path
+          name: startDate
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: path
+          name: endDate
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Calendar events returned successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    title:
+                      type: string
+                    type:
+                      type: string
+                      enum:
+                        - tv
+                        - movie
+                    date:
+                      type: string
+                    tmdbId:
+                      type: number
+                      nullable: true
+                    tvdbId:
+                      type: number
+                      nullable: true
+                    overview:
+                      type: string
+                      nullable: true
+                    releaseDate:
+                      type: string
+                      nullable: true
+                    runtime:
+                      type: number
+                      nullable: true
+                    hasFile:
+                      type: boolean
+                      nullable: true
+                    seriesTitle:
+                      type: string
+                      nullable: true
+                    seasonNumber:
+                      type: number
+                      nullable: true
+                    episodeNumber:
+                      type: number
+                      nullable: true
+                    episodeTitle:
+                      type: string
+                      nullable: true
+                    airDateUtc:
+                      type: string
+                      nullable: true
+                    finaleType:
+                      type: string
+                      nullable: true
   /blocklist:
     get:
       summary: Returns blocklisted items

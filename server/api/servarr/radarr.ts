@@ -30,6 +30,9 @@ export interface RadarrMovie {
   added: string;
   hasFile: boolean;
   tags: number[];
+  overview?: string;
+  releaseDate?: string;
+  runtime?: number;
   movieFile?: {
     id: number;
     movieId: number;
@@ -295,6 +298,26 @@ class RadarrAPI extends ServarrBase<{ movieId: number }> {
         return;
       }
       throw e;
+    }
+  };
+
+  public getCalendarByDate = async (
+    startDate: string,
+    endDate: string
+  ): Promise<RadarrMovie[]> => {
+    try {
+      const response = await this.axios.get<RadarrMovie[]>('/calendar', {
+        params: {
+          start: startDate,
+          end: endDate,
+          unmonitored: true,
+        },
+      });
+      return response.data;
+    } catch (e) {
+      throw new Error(`[Radarr] Failed to retrieve calendar: ${e.message}`, {
+        cause: e,
+      });
     }
   };
 

@@ -14,7 +14,7 @@ export interface SonarrSeason {
     percentOfEpisodes: number;
   };
 }
-interface EpisodeResult {
+export interface EpisodeResult {
   seriesId: number;
   episodeFileId: number;
   seasonNumber: number;
@@ -28,6 +28,9 @@ interface EpisodeResult {
   absoluteEpisodeNumber: number;
   unverifiedSceneNumbering: boolean;
   id: number;
+  series?: SonarrSeries;
+  runtime?: number;
+  finaleType?: string;
 }
 
 export interface SonarrSeries {
@@ -53,6 +56,7 @@ export interface SonarrSeries {
   monitorNewItems: 'all' | 'none';
   useSceneNumbering: boolean;
   runtime: number;
+  tmdbId?: number;
   tvdbId: number;
   tvRageId: number;
   tvMazeId: number;
@@ -438,6 +442,27 @@ class SonarrAPI extends ServarrBase<{
         return;
       }
       throw e;
+    }
+  };
+
+  public getCalendarByDate = async (
+    startDate: string,
+    endDate: string
+  ): Promise<EpisodeResult[]> => {
+    try {
+      const response = await this.axios.get<EpisodeResult[]>('/calendar', {
+        params: {
+          start: startDate,
+          end: endDate,
+          includeSeries: true,
+          unmonitored: true,
+        },
+      });
+      return response.data;
+    } catch (e) {
+      throw new Error(`[Sonarr] Failed to retrieve calendar: ${e.message}`, {
+        cause: e,
+      });
     }
   };
 
