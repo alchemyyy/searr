@@ -13,6 +13,98 @@ function getAxios(sonarr: SonarrAPI): AxiosInstance {
   return (sonarr as unknown as { axios: AxiosInstance }).axios;
 }
 
+describe('SonarrAPI manualImport', () => {
+  afterEach(() => mock.restoreAll());
+
+  it('queues automatically usable files with Sonarr command fields', async () => {
+    const sonarr = buildSonarr();
+    const get = mock.method(getAxios(sonarr), 'get', async () => ({
+      data: [
+        {
+          path: 'C:\\downloads\\Series.S01E01.mkv',
+          folderName: 'Series.S01E01',
+          size: 1024,
+          series: { id: 23 },
+          seasonNumber: 1,
+          episodes: [{ id: 45 }],
+          episodeFileId: 67,
+          quality: { quality: { id: 4, name: 'HDTV-1080p' } },
+          languages: [{ id: 1, name: 'English' }],
+          releaseGroup: 'GROUP',
+          indexerFlags: 2,
+          releaseType: 'singleEpisode',
+          downloadId: 'stale-download-id',
+        },
+        {
+          path: 'C:\\downloads\\sample.mkv',
+          folderName: 'Series.S01E01',
+          size: 0,
+          series: { id: 23 },
+          seasonNumber: 1,
+          episodes: [{ id: 45 }],
+          quality: { quality: { id: 4, name: 'HDTV-1080p' } },
+          languages: [{ id: 1, name: 'English' }],
+        },
+      ],
+    }));
+    const post = mock.method(getAxios(sonarr), 'post', async () => ({}));
+
+    const fileCount = await sonarr.manualImport('current-download-id');
+
+    assert.strictEqual(fileCount, 1);
+    assert.strictEqual(get.mock.calls[0].arguments[0], '/manualimport');
+    assert.deepStrictEqual(get.mock.calls[0].arguments[1], {
+      params: {
+        downloadId: 'current-download-id',
+        filterExistingFiles: true,
+      },
+    });
+    assert.deepStrictEqual(post.mock.calls[0].arguments[1], {
+      name: 'ManualImport',
+      files: [
+        {
+          path: 'C:\\downloads\\Series.S01E01.mkv',
+          folderName: 'Series.S01E01',
+          seriesId: 23,
+          episodeIds: [45],
+          episodeFileId: 67,
+          releaseGroup: 'GROUP',
+          quality: { quality: { id: 4, name: 'HDTV-1080p' } },
+          languages: [{ id: 1, name: 'English' }],
+          indexerFlags: 2,
+          releaseType: 'singleEpisode',
+          downloadId: 'current-download-id',
+        },
+      ],
+      importMode: 'auto',
+    });
+  });
+
+  it('does not queue a command when Sonarr cannot identify an episode', async () => {
+    const sonarr = buildSonarr();
+    mock.method(getAxios(sonarr), 'get', async () => ({
+      data: [
+        {
+          path: 'C:\\downloads\\unknown.mkv',
+          folderName: 'Unknown',
+          size: 1024,
+          series: { id: 23 },
+          seasonNumber: 1,
+          episodes: [],
+          quality: { quality: { id: 4, name: 'HDTV-1080p' } },
+          languages: [{ id: 1, name: 'English' }],
+        },
+      ],
+    }));
+    const post = mock.method(getAxios(sonarr), 'post', async () => ({}));
+
+    const fileCount = await sonarr.manualImport('download-id');
+
+    assert.strictEqual(fileCount, 0);
+    assert.strictEqual(post.mock.callCount(), 0);
+  });
+});
+
 describe('SonarrAPI removeSeries', () => {
   afterEach(() => mock.restoreAll());
 

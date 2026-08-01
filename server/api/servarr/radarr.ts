@@ -1,6 +1,23 @@
 import logger from '@server/logger';
 import type { AxiosResponse } from 'axios';
-import ServarrBase from './base';
+import ServarrBase, { type ManualImportResource } from './base';
+
+interface RadarrManualImportResource extends ManualImportResource {
+  movie?: {
+    id: number;
+  };
+}
+
+interface RadarrManualImportFile {
+  path: string;
+  folderName: string;
+  movieId: number;
+  releaseGroup?: string;
+  quality: Record<string, unknown>;
+  languages: Record<string, unknown>[];
+  indexerFlags: number;
+  downloadId: string;
+}
 
 export interface RadarrMovieOptions {
   title: string;
@@ -272,6 +289,52 @@ class RadarrAPI extends ServarrBase<{ movieId: number }> {
       );
     }
   }
+
+  /** Queues every automatically usable candidate for a failed Radarr import. */
+  public async manualImport(downloadID: string): Promise<number> {
+    const candidates =
+      await this.getManualImportItems<RadarrManualImportResource>(downloadID);
+    const files: RadarrManualImportFile[] = [];
+
+    candidates.forEach((candidate) => {
+      if (
+        !candidate.movie ||
+        !Number.isInteger(candidate.movie.id) ||
+        candidate.movie.id <= 0 ||
+        !candidate.path ||
+        typeof candidate.folderName !== 'string' ||
+        typeof candidate.size !== 'number' ||
+        candidate.size <= 0 ||
+        !candidate.quality ||
+        !Array.isArray(candidate.languages)
+      ) {
+        return;
+      }
+
+      files.push({
+        path: candidate.path,
+        folderName: candidate.folderName,
+        movieId: candidate.movie.id,
+        releaseGroup: candidate.releaseGroup,
+        quality: candidate.quality,
+        languages: candidate.languages,
+        indexerFlags: candidate.indexerFlags ?? 0,
+        downloadId: downloadID,
+      });
+    });
+
+    if (files.length === 0) {
+      return 0;
+    }
+
+    await this.runCommand('ManualImport', {
+      files,
+      importMode: 'auto',
+    });
+
+    return files.length;
+  }
+
   public removeMovie = async (tmdbId: number): Promise<void> => {
     const { id, title } = await this.getMovieByTmdbId(tmdbId);
 

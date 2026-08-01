@@ -1399,6 +1399,29 @@ components:
         name:
           type: string
           example: 720p/1080p
+    ManualImportRequest:
+      type: object
+      required:
+        - downloadId
+      properties:
+        downloadId:
+          type: string
+          minLength: 1
+          maxLength: 512
+          example: SABnzbd_nzo_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    ManualImportResponse:
+      type: object
+      required:
+        - queued
+        - fileCount
+      properties:
+        queued:
+          type: boolean
+          example: true
+        fileCount:
+          type: integer
+          minimum: 1
+          example: 1
     PageInfo:
       type: object
       properties:
@@ -7527,6 +7550,42 @@ paths:
                     $ref: '#/components/schemas/RadarrSettings'
                   profiles:
                     $ref: '#/components/schemas/ServiceProfile'
+  /service/radarr/{radarrId}/manual-import:
+    post:
+      summary: Attempt a Radarr manual import
+      description: Queues an automatic manual import for a completed Radarr download that has an import warning. Requires the Manual Imports permission.
+      tags:
+        - service
+      parameters:
+        - in: path
+          name: radarrId
+          required: true
+          schema:
+            type: number
+            example: 0
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualImportRequest'
+      responses:
+        '202':
+          description: Manual import queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualImportResponse'
+        '400':
+          description: Invalid download ID
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Radarr server or download not found
+        '409':
+          description: Download is not ready or has no automatically importable files
+        '502':
+          description: Radarr rejected the request or could not be reached
   /service/sonarr:
     get:
       summary: Get non-sensitive Sonarr server list
@@ -7567,6 +7626,42 @@ paths:
                     $ref: '#/components/schemas/SonarrSettings'
                   profiles:
                     $ref: '#/components/schemas/ServiceProfile'
+  /service/sonarr/{sonarrId}/manual-import:
+    post:
+      summary: Attempt a Sonarr manual import
+      description: Queues an automatic manual import for a completed Sonarr download that has an import warning. Requires the Manual Imports permission.
+      tags:
+        - service
+      parameters:
+        - in: path
+          name: sonarrId
+          required: true
+          schema:
+            type: number
+            example: 0
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManualImportRequest'
+      responses:
+        '202':
+          description: Manual import queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManualImportResponse'
+        '400':
+          description: Invalid download ID
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Sonarr server or download not found
+        '409':
+          description: Download is not ready or has no automatically importable files
+        '502':
+          description: Sonarr rejected the request or could not be reached
   /service/sonarr/lookup/{tmdbId}:
     get:
       summary: Get series from Sonarr

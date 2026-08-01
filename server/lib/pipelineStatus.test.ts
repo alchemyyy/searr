@@ -9,6 +9,7 @@ import { computePipelineStatus } from '@server/lib/pipelineStatus';
 const createDownloadItem = (
   overrides: Partial<DownloadingItem> = {}
 ): DownloadingItem => ({
+  serverId: 1,
   mediaType: MediaType.MOVIE,
   externalId: 1,
   size: 100,

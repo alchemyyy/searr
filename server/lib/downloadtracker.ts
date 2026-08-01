@@ -17,6 +17,7 @@ interface EpisodeNumberResult {
 }
 
 export interface DownloadingItem {
+  serverId: number;
   mediaType: MediaType;
   externalId: number;
   size: number;
@@ -150,6 +151,7 @@ class DownloadTracker {
             const queueItems = await radarr.getQueue();
 
             this.radarrServers[server.id] = queueItems.map((item) => ({
+              serverId: server.id,
               externalId: item.movieId,
               estimatedCompletionTime: new Date(item.estimatedCompletionTime),
               mediaType: MediaType.MOVIE,
@@ -248,6 +250,7 @@ class DownloadTracker {
             const queueItems = await sonarr.getQueue();
 
             this.sonarrServers[server.id] = queueItems.map((item) => ({
+              serverId: server.id,
               externalId: item.seriesId,
               estimatedCompletionTime: new Date(item.estimatedCompletionTime),
               mediaType: MediaType.TV,

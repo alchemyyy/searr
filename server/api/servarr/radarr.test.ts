@@ -13,6 +13,86 @@ function getAxios(radarr: RadarrAPI): AxiosInstance {
   return (radarr as unknown as { axios: AxiosInstance }).axios;
 }
 
+describe('RadarrAPI manualImport', () => {
+  afterEach(() => mock.restoreAll());
+
+  it('queues automatically usable files with Radarr command fields', async () => {
+    const radarr = buildRadarr();
+    const get = mock.method(getAxios(radarr), 'get', async () => ({
+      data: [
+        {
+          path: 'C:\\downloads\\Movie.2026.mkv',
+          folderName: 'Movie.2026',
+          size: 1024,
+          movie: { id: 12 },
+          quality: { quality: { id: 4, name: 'HDTV-1080p' } },
+          languages: [{ id: 1, name: 'English' }],
+          releaseGroup: 'GROUP',
+          indexerFlags: 2,
+          downloadId: 'stale-download-id',
+        },
+        {
+          path: 'C:\\downloads\\sample.mkv',
+          folderName: 'Movie.2026',
+          size: 0,
+          movie: { id: 12 },
+          quality: { quality: { id: 4, name: 'HDTV-1080p' } },
+          languages: [{ id: 1, name: 'English' }],
+        },
+      ],
+    }));
+    const post = mock.method(getAxios(radarr), 'post', async () => ({}));
+
+    const fileCount = await radarr.manualImport('current-download-id');
+
+    assert.strictEqual(fileCount, 1);
+    assert.strictEqual(get.mock.calls[0].arguments[0], '/manualimport');
+    assert.deepStrictEqual(get.mock.calls[0].arguments[1], {
+      params: {
+        downloadId: 'current-download-id',
+        filterExistingFiles: true,
+      },
+    });
+    assert.deepStrictEqual(post.mock.calls[0].arguments[1], {
+      name: 'ManualImport',
+      files: [
+        {
+          path: 'C:\\downloads\\Movie.2026.mkv',
+          folderName: 'Movie.2026',
+          movieId: 12,
+          releaseGroup: 'GROUP',
+          quality: { quality: { id: 4, name: 'HDTV-1080p' } },
+          languages: [{ id: 1, name: 'English' }],
+          indexerFlags: 2,
+          downloadId: 'current-download-id',
+        },
+      ],
+      importMode: 'auto',
+    });
+  });
+
+  it('does not queue a command when Radarr cannot identify the movie', async () => {
+    const radarr = buildRadarr();
+    mock.method(getAxios(radarr), 'get', async () => ({
+      data: [
+        {
+          path: 'C:\\downloads\\unknown.mkv',
+          folderName: 'Unknown',
+          size: 1024,
+          quality: { quality: { id: 4, name: 'HDTV-1080p' } },
+          languages: [{ id: 1, name: 'English' }],
+        },
+      ],
+    }));
+    const post = mock.method(getAxios(radarr), 'post', async () => ({}));
+
+    const fileCount = await radarr.manualImport('download-id');
+
+    assert.strictEqual(fileCount, 0);
+    assert.strictEqual(post.mock.callCount(), 0);
+  });
+});
+
 describe('RadarrAPI removeMovie', () => {
   afterEach(() => mock.restoreAll());
 

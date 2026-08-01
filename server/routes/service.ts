@@ -1,3 +1,4 @@
+import { isManualImportRequired } from '@server/api/servarr/base';
 import RadarrAPI from '@server/api/servarr/radarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import TheMovieDb from '@server/api/themoviedb';
@@ -5,11 +6,23 @@ import type {
   ServiceCommonServer,
   ServiceCommonServerWithDetails,
 } from '@server/interfaces/api/serviceInterfaces';
+import { Permission } from '@server/lib/permissions';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
+import { isAuthenticated } from '@server/middleware/auth';
 import { Router } from 'express';
 
 const serviceRoutes = Router();
+const MAX_DOWNLOAD_ID_LENGTH = 512;
+
+interface ManualImportRequestBody {
+  downloadId?: string;
+}
+
+interface ManualImportResponse {
+  queued: boolean;
+  fileCount: number;
+}
 
 serviceRoutes.get('/radarr', async (req, res) => {
   const settings = getSettings();
@@ -76,6 +89,94 @@ serviceRoutes.get<{ radarrId: string }>(
       })),
       tags,
     } as ServiceCommonServerWithDetails);
+  }
+);
+
+serviceRoutes.post<
+  { radarrId: string },
+  ManualImportResponse,
+  ManualImportRequestBody
+>(
+  '/radarr/:radarrId/manual-import',
+  isAuthenticated(Permission.MANUAL_IMPORT),
+  async (req, res, next) => {
+    const downloadID =
+      typeof req.body.downloadId === 'string' ? req.body.downloadId.trim() : '';
+
+    if (!downloadID || downloadID.length > MAX_DOWNLOAD_ID_LENGTH) {
+      return next({ status: 400, message: 'A valid download ID is required.' });
+    }
+
+    const settings = getSettings();
+    const radarrSettings = settings.radarr.find(
+      (radarr) => radarr.id === Number(req.params.radarrId)
+    );
+
+    if (!radarrSettings) {
+      return next({
+        status: 404,
+        message: 'Radarr server with provided ID does not exist.',
+      });
+    }
+
+    const radarr = new RadarrAPI({
+      apiKey: radarrSettings.apiKey,
+      url: RadarrAPI.buildUrl(radarrSettings, '/api/v3'),
+    });
+
+    try {
+      const queueItems = await radarr.getQueue();
+      const queueItem = queueItems.find(
+        (item) => item.downloadId === downloadID
+      );
+
+      if (!queueItem) {
+        return next({
+          status: 404,
+          message: 'Download is no longer present in the Radarr queue.',
+        });
+      }
+
+      if (!isManualImportRequired(queueItem)) {
+        return next({
+          status: 409,
+          message: 'Download is not ready for manual import.',
+        });
+      }
+
+      const fileCount = await radarr.manualImport(downloadID);
+
+      if (fileCount === 0) {
+        return next({
+          status: 409,
+          message:
+            'No automatically importable files were found. A Radarr administrator must complete the import.',
+        });
+      }
+
+      logger.info('User queued a Radarr manual import', {
+        label: 'Radarr API',
+        downloadId: downloadID,
+        fileCount,
+        serverId: radarrSettings.id,
+        userId: req.user?.id,
+      });
+
+      return res.status(202).json({ queued: true, fileCount });
+    } catch (e) {
+      logger.error('Failed to queue a Radarr manual import', {
+        label: 'Radarr API',
+        downloadId: downloadID,
+        errorMessage: e.message,
+        serverId: radarrSettings.id,
+        userId: req.user?.id,
+      });
+
+      return next({
+        status: 502,
+        message: 'Failed to queue manual import in Radarr.',
+      });
+    }
   }
 );
 
@@ -163,6 +264,94 @@ serviceRoutes.get<{ sonarrId: string }>(
       } as ServiceCommonServerWithDetails);
     } catch (e) {
       next({ status: 500, message: e.message });
+    }
+  }
+);
+
+serviceRoutes.post<
+  { sonarrId: string },
+  ManualImportResponse,
+  ManualImportRequestBody
+>(
+  '/sonarr/:sonarrId/manual-import',
+  isAuthenticated(Permission.MANUAL_IMPORT),
+  async (req, res, next) => {
+    const downloadID =
+      typeof req.body.downloadId === 'string' ? req.body.downloadId.trim() : '';
+
+    if (!downloadID || downloadID.length > MAX_DOWNLOAD_ID_LENGTH) {
+      return next({ status: 400, message: 'A valid download ID is required.' });
+    }
+
+    const settings = getSettings();
+    const sonarrSettings = settings.sonarr.find(
+      (sonarr) => sonarr.id === Number(req.params.sonarrId)
+    );
+
+    if (!sonarrSettings) {
+      return next({
+        status: 404,
+        message: 'Sonarr server with provided ID does not exist.',
+      });
+    }
+
+    const sonarr = new SonarrAPI({
+      apiKey: sonarrSettings.apiKey,
+      url: SonarrAPI.buildUrl(sonarrSettings, '/api/v3'),
+    });
+
+    try {
+      const queueItems = await sonarr.getQueue();
+      const queueItem = queueItems.find(
+        (item) => item.downloadId === downloadID
+      );
+
+      if (!queueItem) {
+        return next({
+          status: 404,
+          message: 'Download is no longer present in the Sonarr queue.',
+        });
+      }
+
+      if (!isManualImportRequired(queueItem)) {
+        return next({
+          status: 409,
+          message: 'Download is not ready for manual import.',
+        });
+      }
+
+      const fileCount = await sonarr.manualImport(downloadID);
+
+      if (fileCount === 0) {
+        return next({
+          status: 409,
+          message:
+            'No automatically importable files were found. A Sonarr administrator must complete the import.',
+        });
+      }
+
+      logger.info('User queued a Sonarr manual import', {
+        label: 'Sonarr API',
+        downloadId: downloadID,
+        fileCount,
+        serverId: sonarrSettings.id,
+        userId: req.user?.id,
+      });
+
+      return res.status(202).json({ queued: true, fileCount });
+    } catch (e) {
+      logger.error('Failed to queue a Sonarr manual import', {
+        label: 'Sonarr API',
+        downloadId: downloadID,
+        errorMessage: e.message,
+        serverId: sonarrSettings.id,
+        userId: req.user?.id,
+      });
+
+      return next({
+        status: 502,
+        message: 'Failed to queue manual import in Sonarr.',
+      });
     }
   }
 );
