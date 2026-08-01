@@ -3,6 +3,8 @@ import type { AvailableCacheIds } from '@server/lib/cache';
 import cacheManager from '@server/lib/cache';
 import { getSettings, type DVRSettings } from '@server/lib/settings';
 
+const QUEUE_PAGE_SIZE = 200;
+
 export interface SystemStatus {
   version: string;
   buildTime: Date;
@@ -48,7 +50,12 @@ export interface QualityProfile {
   name: string;
 }
 
-interface QueueItem {
+export interface QueueStatusMessage {
+  title: string;
+  messages: string[];
+}
+
+export interface QueueItem {
   size: number;
   title: string;
   sizeleft: number;
@@ -62,6 +69,14 @@ interface QueueItem {
   downloadClient: string;
   indexer: string;
   id: number;
+  statusMessages: QueueStatusMessage[];
+}
+
+export interface HealthCheckResult {
+  source: string;
+  type: string;
+  message: string;
+  wikiUrl?: string;
 }
 
 export interface Tag {
@@ -163,16 +178,35 @@ class ServarrBase<QueueItemAppendT> extends ExternalAPI {
 
   public getQueue = async (): Promise<(QueueItem & QueueItemAppendT)[]> => {
     try {
-      const response = await this.axios.get<QueueResponse<QueueItemAppendT>>(
-        `/queue`,
-        {
-          params: {
-            includeEpisode: true,
-          },
-        }
-      );
+      const allRecords: (QueueItem & QueueItemAppendT)[] = [];
+      let page = 1;
 
-      return response.data.records;
+      // Paginate so retries and concurrent grabs cannot hide later queue items
+      while (true) {
+        const response = await this.axios.get<QueueResponse<QueueItemAppendT>>(
+          `/queue`,
+          {
+            params: {
+              includeEpisode: true,
+              page,
+              pageSize: QUEUE_PAGE_SIZE,
+            },
+          }
+        );
+
+        allRecords.push(...response.data.records);
+
+        if (
+          response.data.records.length === 0 ||
+          allRecords.length >= response.data.totalRecords
+        ) {
+          break;
+        }
+
+        page += 1;
+      }
+
+      return allRecords;
     } catch (e) {
       throw new Error(
         `[${this.apiName}] Failed to retrieve queue: ${e.message}`,
@@ -226,6 +260,18 @@ class ServarrBase<QueueItemAppendT> extends ExternalAPI {
       throw new Error(`[${this.apiName}] Failed to rename tag: ${e.message}`, {
         cause: e,
       });
+    }
+  };
+
+  public getHealth = async (): Promise<HealthCheckResult[]> => {
+    try {
+      const response = await this.axios.get<HealthCheckResult[]>('/health');
+
+      return response.data;
+    } catch (e) {
+      throw new Error(
+        `[${this.apiName}] Failed to retrieve health status: ${e.message}`
+      );
     }
   };
 

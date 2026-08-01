@@ -144,6 +144,11 @@ const RequestItemError = ({
                         requestData.is4k ? 'downloadStatus4k' : 'downloadStatus'
                       ]
                     }
+                    pipelineStatus={
+                      requestData.media[
+                        requestData.is4k ? 'pipelineStatus4k' : 'pipelineStatus'
+                      ]
+                    }
                     title={intl.formatMessage(messages.unknowntitle)}
                     inProgress={
                       (
@@ -543,6 +548,11 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
                   downloadItem={
                     requestData.media[
                       requestData.is4k ? 'downloadStatus4k' : 'downloadStatus'
+                    ]
+                  }
+                  pipelineStatus={
+                    requestData.media[
+                      requestData.is4k ? 'pipelineStatus4k' : 'pipelineStatus'
                     ]
                   }
                   title={isMovie(title) ? title.title : title.name}

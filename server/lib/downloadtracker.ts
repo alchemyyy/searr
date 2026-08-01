@@ -1,8 +1,12 @@
+import JellyfinAPI from '@server/api/jellyfin';
+import type { HealthCheckResult } from '@server/api/servarr/base';
 import RadarrAPI from '@server/api/servarr/radarr';
 import SonarrAPI from '@server/api/servarr/sonarr';
 import { MediaType } from '@server/constants/media';
+import { MediaServerType } from '@server/constants/server';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
+import { getHostname } from '@server/utils/getHostname';
 import { uniqWith } from 'lodash';
 
 interface EpisodeNumberResult {
@@ -11,6 +15,7 @@ interface EpisodeNumberResult {
   absoluteEpisodeNumber: number;
   id: number;
 }
+
 export interface DownloadingItem {
   mediaType: MediaType;
   externalId: number;
@@ -22,11 +27,24 @@ export interface DownloadingItem {
   title: string;
   downloadId: string;
   episode?: EpisodeNumberResult;
+  trackedDownloadStatus: string;
+  trackedDownloadState: string;
+  downloadClient: string;
+  protocol: string;
+  indexer: string;
+  statusMessages: DownloadStatusMessage[];
+}
+
+export interface DownloadStatusMessage {
+  title: string;
+  messages: string[];
 }
 
 class DownloadTracker {
   private radarrServers: Record<number, DownloadingItem[]> = {};
   private sonarrServers: Record<number, DownloadingItem[]> = {};
+  private healthStatus: Record<string, HealthCheckResult[]> = {};
+  private jellyfinScanRunning = false;
 
   public getMovieProgress(
     serverId: number,
@@ -54,17 +72,59 @@ class DownloadTracker {
     );
   }
 
-  public async resetDownloadTracker() {
+  public getHealthForServer(
+    serverType: 'radarr' | 'sonarr',
+    serverId: number
+  ): HealthCheckResult[] {
+    return this.healthStatus[`${serverType}-${serverId}`] ?? [];
+  }
+
+  public getJellyfinScanStatus(): boolean {
+    return this.jellyfinScanRunning;
+  }
+
+  public resetDownloadTracker(): void {
     this.radarrServers = {};
     this.sonarrServers = {};
+    this.healthStatus = {};
+    this.jellyfinScanRunning = false;
   }
 
-  public updateDownloads() {
-    this.updateRadarrDownloads();
-    this.updateSonarrDownloads();
+  public async updateDownloads(): Promise<void> {
+    await Promise.all([
+      this.updateRadarrDownloads(),
+      this.updateSonarrDownloads(),
+      this.updateJellyfinScanStatus(),
+    ]);
   }
 
-  private async updateRadarrDownloads() {
+  private async updateJellyfinScanStatus(): Promise<void> {
+    const settings = getSettings();
+
+    if (
+      settings.main.mediaServerType !== MediaServerType.JELLYFIN &&
+      settings.main.mediaServerType !== MediaServerType.EMBY
+    ) {
+      this.jellyfinScanRunning = false;
+      return;
+    }
+
+    try {
+      const jellyfinClient = new JellyfinAPI(
+        getHostname(),
+        settings.jellyfin.apiKey
+      );
+
+      this.jellyfinScanRunning = await jellyfinClient.isLibraryScanRunning();
+    } catch {
+      this.jellyfinScanRunning = false;
+      logger.debug('Unable to check Jellyfin scan status', {
+        label: 'Download Tracker',
+      });
+    }
+  }
+
+  private async updateRadarrDownloads(): Promise<void> {
     const settings = getSettings();
 
     // Remove duplicate servers
@@ -77,7 +137,7 @@ class DownloadTracker {
     });
 
     // Load downloads from Radarr servers
-    Promise.all(
+    await Promise.all(
       filteredServers.map(async (server) => {
         if (server.syncEnabled) {
           const radarr = new RadarrAPI({
@@ -99,6 +159,12 @@ class DownloadTracker {
               timeLeft: item.timeleft,
               title: item.title,
               downloadId: item.downloadId,
+              trackedDownloadStatus: item.trackedDownloadStatus ?? '',
+              trackedDownloadState: item.trackedDownloadState ?? '',
+              downloadClient: item.downloadClient ?? '',
+              protocol: item.protocol ?? '',
+              indexer: item.indexer ?? '',
+              statusMessages: item.statusMessages ?? [],
             }));
 
             if (queueItems.length > 0) {
@@ -113,6 +179,18 @@ class DownloadTracker {
               {
                 label: 'Download Tracker',
               }
+            );
+          }
+
+          try {
+            const health: HealthCheckResult[] = await radarr.getHealth();
+            this.healthStatus[`radarr-${server.id}`] = health;
+          } catch {
+            // Clear stale data so a previous blocked state cannot persist
+            this.healthStatus[`radarr-${server.id}`] = [];
+            logger.debug(
+              `Unable to get health from Radarr server: ${server.name}`,
+              { label: 'Download Tracker' }
             );
           }
 
@@ -135,6 +213,8 @@ class DownloadTracker {
           matchingServers.forEach((ms) => {
             if (ms.syncEnabled) {
               this.radarrServers[ms.id] = this.radarrServers[server.id];
+              this.healthStatus[`radarr-${ms.id}`] =
+                this.healthStatus[`radarr-${server.id}`];
             }
           });
         }
@@ -142,7 +222,7 @@ class DownloadTracker {
     );
   }
 
-  private async updateSonarrDownloads() {
+  private async updateSonarrDownloads(): Promise<void> {
     const settings = getSettings();
 
     // Remove duplicate servers
@@ -155,7 +235,7 @@ class DownloadTracker {
     });
 
     // Load downloads from Sonarr servers
-    Promise.all(
+    await Promise.all(
       filteredServers.map(async (server) => {
         if (server.syncEnabled) {
           const sonarr = new SonarrAPI({
@@ -178,6 +258,12 @@ class DownloadTracker {
               title: item.title,
               episode: item.episode,
               downloadId: item.downloadId,
+              trackedDownloadStatus: item.trackedDownloadStatus ?? '',
+              trackedDownloadState: item.trackedDownloadState ?? '',
+              downloadClient: item.downloadClient ?? '',
+              protocol: item.protocol ?? '',
+              indexer: item.indexer ?? '',
+              statusMessages: item.statusMessages ?? [],
             }));
 
             if (queueItems.length > 0) {
@@ -192,6 +278,18 @@ class DownloadTracker {
               {
                 label: 'Download Tracker',
               }
+            );
+          }
+
+          try {
+            const health: HealthCheckResult[] = await sonarr.getHealth();
+            this.healthStatus[`sonarr-${server.id}`] = health;
+          } catch {
+            // Clear stale data so a previous blocked state cannot persist
+            this.healthStatus[`sonarr-${server.id}`] = [];
+            logger.debug(
+              `Unable to get health from Sonarr server: ${server.name}`,
+              { label: 'Download Tracker' }
             );
           }
 
@@ -214,6 +312,8 @@ class DownloadTracker {
           matchingServers.forEach((ms) => {
             if (ms.syncEnabled) {
               this.sonarrServers[ms.id] = this.sonarrServers[server.id];
+              this.healthStatus[`sonarr-${ms.id}`] =
+                this.healthStatus[`sonarr-${server.id}`];
             }
           });
         }

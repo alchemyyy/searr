@@ -199,6 +199,7 @@ class SonarrScanner
               monitored: false,
               statistics: {
                 episodeFileCount: 0,
+                episodeCount: season.episode_count,
                 totalEpisodeCount: season.episode_count,
               },
             };
@@ -214,7 +215,7 @@ class SonarrScanner
           seasonNumber: season.seasonNumber,
           episodes: !server4k ? totalAvailableEpisodes : 0,
           episodes4k: server4k ? totalAvailableEpisodes : 0,
-          totalEpisodes: season.statistics?.totalEpisodeCount ?? 0,
+          totalEpisodes: season.statistics?.episodeCount ?? 0,
           processing: season.monitored && totalAvailableEpisodes === 0,
           is4kOverride: server4k,
         });

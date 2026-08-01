@@ -9,6 +9,7 @@ import defineMessages from '@app/utils/defineMessages';
 import { MediaStatus } from '@server/constants/media';
 import { MediaServerType } from '@server/constants/server';
 import type { DownloadingItem } from '@server/lib/downloadtracker';
+import type { PipelineStatus } from '@server/lib/pipelineStatus';
 import { useIntl } from 'react-intl';
 
 const messages = defineMessages('components.StatusBadge', {
@@ -24,6 +25,7 @@ const messages = defineMessages('components.StatusBadge', {
 interface StatusBadgeProps {
   status?: MediaStatus;
   downloadItem?: DownloadingItem[];
+  pipelineStatus?: PipelineStatus | null;
   is4k?: boolean;
   inProgress?: boolean;
   plexUrl?: string;
@@ -34,9 +36,33 @@ interface StatusBadgeProps {
   statusLabelOverride?: string;
 }
 
+type BadgeType =
+  | 'default'
+  | 'primary'
+  | 'danger'
+  | 'warning'
+  | 'success'
+  | 'dark'
+  | 'light';
+
+const getPipelineBadgeType = (
+  pipelineStatus: PipelineStatus | null | undefined,
+  fallback: BadgeType
+): BadgeType => {
+  switch (pipelineStatus?.level) {
+    case 'error':
+      return 'danger';
+    case 'warning':
+      return 'warning';
+    default:
+      return fallback;
+  }
+};
+
 const StatusBadge = ({
   status,
   downloadItem = [],
+  pipelineStatus,
   is4k = false,
   inProgress = false,
   plexUrl,
@@ -53,8 +79,15 @@ const StatusBadge = ({
   let mediaLink: string | undefined;
   let mediaLinkDescription: string | undefined;
 
-  const calculateDownloadProgress = (media: DownloadingItem) => {
-    return Math.round(((media?.size - media?.sizeLeft) / media?.size) * 100);
+  const calculateDownloadProgress = (media: DownloadingItem): number => {
+    if (media.size <= 0) {
+      return 0;
+    }
+
+    const progress: number = Math.round(
+      ((media.size - media.sizeLeft) / media.size) * 100
+    );
+    return Math.min(100, Math.max(0, progress));
   };
 
   if (
@@ -137,18 +170,24 @@ const StatusBadge = ({
       </ul>
     );
 
-  const badgeDownloadProgress = (
-    <div
-      className={`absolute left-0 top-0 z-10 flex h-full ${
-        status === MediaStatus.DELETED
+  const progressBarColor: string =
+    pipelineStatus?.level === 'error'
+      ? 'bg-red-600/80'
+      : pipelineStatus?.level === 'warning'
+        ? 'bg-yellow-500/80'
+        : status === MediaStatus.DELETED
           ? 'bg-red-600/80'
           : status === MediaStatus.PROCESSING
             ? 'bg-indigo-500/80'
-            : 'bg-green-500/80'
-      } transition-all duration-200 ease-in-out`}
+            : 'bg-green-500/80';
+  const firstDownloadItem: DownloadingItem | undefined = downloadItem[0];
+
+  const badgeDownloadProgress = (
+    <div
+      className={`absolute left-0 top-0 z-10 flex h-full ${progressBarColor} transition-all duration-200 ease-in-out`}
       style={{
         width: `${
-          downloadItem ? calculateDownloadProgress(downloadItem[0]) : 0
+          firstDownloadItem ? calculateDownloadProgress(firstDownloadItem) : 0
         }%`,
       }}
     />
@@ -167,7 +206,7 @@ const StatusBadge = ({
           }}
         >
           <Badge
-            badgeType="success"
+            badgeType={getPipelineBadgeType(pipelineStatus, 'success')}
             href={mediaLink}
             className={`${
               inProgress && 'relative !bg-gray-700/80 !px-0 hover:!bg-gray-700'
@@ -184,7 +223,8 @@ const StatusBadge = ({
                   is4k ? messages.status4k : messages.status,
                   {
                     status: inProgress
-                      ? intl.formatMessage(globalMessages.processing)
+                      ? (pipelineStatus?.label ??
+                        intl.formatMessage(globalMessages.processing))
                       : intl.formatMessage(globalMessages.available),
                   }
                 )}
@@ -232,7 +272,7 @@ const StatusBadge = ({
           }}
         >
           <Badge
-            badgeType="success"
+            badgeType={getPipelineBadgeType(pipelineStatus, 'success')}
             href={mediaLink}
             className={`${
               inProgress && 'relative !bg-gray-700/80 !px-0 hover:!bg-gray-700'
@@ -249,7 +289,8 @@ const StatusBadge = ({
                   is4k ? messages.status4k : messages.status,
                   {
                     status: inProgress
-                      ? intl.formatMessage(globalMessages.processing)
+                      ? (pipelineStatus?.label ??
+                        intl.formatMessage(globalMessages.processing))
                       : intl.formatMessage(globalMessages.partiallyavailable),
                   }
                 )}
@@ -285,10 +326,29 @@ const StatusBadge = ({
         </Tooltip>
       );
 
-    case MediaStatus.PROCESSING:
+    case MediaStatus.PROCESSING: {
+      const pipelineBadgeType: BadgeType = getPipelineBadgeType(
+        pipelineStatus,
+        'primary'
+      );
+
+      const pipelineLabel: string = pipelineStatus?.label
+        ? is4k
+          ? `4K ${pipelineStatus.label}`
+          : pipelineStatus.label
+        : intl.formatMessage(is4k ? messages.status4k : messages.status, {
+            status: inProgress
+              ? intl.formatMessage(globalMessages.processing)
+              : intl.formatMessage(globalMessages.requested),
+          });
+
+      const pipelineTooltip =
+        pipelineStatus?.details ||
+        (inProgress ? tooltipContent : mediaLinkDescription);
+
       return (
         <Tooltip
-          content={inProgress ? tooltipContent : mediaLinkDescription}
+          content={inProgress ? tooltipContent : pipelineTooltip}
           className={`${
             inProgress && 'hidden max-h-96 w-96 overflow-y-auto sm:block'
           }`}
@@ -297,7 +357,7 @@ const StatusBadge = ({
           }}
         >
           <Badge
-            badgeType="primary"
+            badgeType={pipelineBadgeType}
             href={mediaLink}
             className={`${
               inProgress && 'relative !bg-gray-700/80 !px-0 hover:!bg-gray-700'
@@ -309,16 +369,7 @@ const StatusBadge = ({
                 inProgress && 'px-2'
               }`}
             >
-              <span>
-                {intl.formatMessage(
-                  is4k ? messages.status4k : messages.status,
-                  {
-                    status: inProgress
-                      ? intl.formatMessage(globalMessages.processing)
-                      : intl.formatMessage(globalMessages.requested),
-                  }
-                )}
-              </span>
+              <span>{pipelineLabel}</span>
               {inProgress && (
                 <>
                   {mediaType === 'tv' &&
@@ -349,17 +400,30 @@ const StatusBadge = ({
           </Badge>
         </Tooltip>
       );
+    }
 
-    case MediaStatus.PENDING:
+    case MediaStatus.PENDING: {
+      const pendingLabel: string = pipelineStatus?.label
+        ? is4k
+          ? `4K ${pipelineStatus.label}`
+          : pipelineStatus.label
+        : intl.formatMessage(is4k ? messages.status4k : messages.status, {
+            status: intl.formatMessage(globalMessages.pending),
+          });
+
+      const pendingBadgeType: BadgeType = getPipelineBadgeType(
+        pipelineStatus,
+        'warning'
+      );
+
       return (
-        <Tooltip content={mediaLinkDescription}>
-          <Badge badgeType="warning" href={mediaLink}>
-            {intl.formatMessage(is4k ? messages.status4k : messages.status, {
-              status: intl.formatMessage(globalMessages.pending),
-            })}
+        <Tooltip content={pipelineStatus?.details || mediaLinkDescription}>
+          <Badge badgeType={pendingBadgeType} href={mediaLink}>
+            {pendingLabel}
           </Badge>
         </Tooltip>
       );
+    }
 
     case MediaStatus.BLOCKLISTED:
       return (
@@ -386,7 +450,7 @@ const StatusBadge = ({
           }}
         >
           <Badge
-            badgeType="danger"
+            badgeType={getPipelineBadgeType(pipelineStatus, 'danger')}
             href={mediaLink}
             className={`${
               inProgress && 'relative !bg-gray-700/80 !px-0 hover:!bg-gray-700'
@@ -403,7 +467,8 @@ const StatusBadge = ({
                   is4k ? messages.status4k : messages.status,
                   {
                     status: inProgress
-                      ? intl.formatMessage(globalMessages.processing)
+                      ? (pipelineStatus?.label ??
+                        intl.formatMessage(globalMessages.processing))
                       : intl.formatMessage(globalMessages.deleted),
                   }
                 )}

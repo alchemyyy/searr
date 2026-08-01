@@ -8,6 +8,10 @@ import type { User } from '@server/entity/User';
 import { Watchlist } from '@server/entity/Watchlist';
 import type { DownloadingItem } from '@server/lib/downloadtracker';
 import downloadTracker from '@server/lib/downloadtracker';
+import {
+  computePipelineStatus,
+  type PipelineStatus,
+} from '@server/lib/pipelineStatus';
 import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { DbAwareColumn, resolveDbType } from '@server/utils/DbColumnHelper';
@@ -189,6 +193,8 @@ class Media {
   public serviceUrl4k?: string;
   public downloadStatus?: DownloadingItem[] = [];
   public downloadStatus4k?: DownloadingItem[] = [];
+  public pipelineStatus?: PipelineStatus | null;
+  public pipelineStatus4k?: PipelineStatus | null;
 
   public mediaUrl?: string;
   public mediaUrl4k?: string;
@@ -390,6 +396,38 @@ class Media {
           this.externalServiceId4k
         );
       }
+    }
+
+    this.computePipelineStatusFromDownloads();
+  }
+
+  private computePipelineStatusFromDownloads(): void {
+    const serverType = this.mediaType === MediaType.MOVIE ? 'radarr' : 'sonarr';
+
+    if (this.serviceId != null) {
+      this.pipelineStatus = computePipelineStatus({
+        mediaStatus: this.status,
+        downloadItems: this.downloadStatus ?? [],
+        healthChecks: downloadTracker.getHealthForServer(
+          serverType,
+          this.serviceId
+        ),
+        jellyfinScanRunning: downloadTracker.getJellyfinScanStatus(),
+        serverType,
+      });
+    }
+
+    if (this.serviceId4k != null) {
+      this.pipelineStatus4k = computePipelineStatus({
+        mediaStatus: this.status4k,
+        downloadItems: this.downloadStatus4k ?? [],
+        healthChecks: downloadTracker.getHealthForServer(
+          serverType,
+          this.serviceId4k
+        ),
+        jellyfinScanRunning: downloadTracker.getJellyfinScanStatus(),
+        serverType,
+      });
     }
   }
 }

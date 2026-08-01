@@ -156,6 +156,13 @@ const RequestCardError = ({ requestData }: RequestCardErrorProps) => {
                             : 'downloadStatus'
                         ]
                       }
+                      pipelineStatus={
+                        requestData.media[
+                          requestData.is4k
+                            ? 'pipelineStatus4k'
+                            : 'pipelineStatus'
+                        ]
+                      }
                       title={intl.formatMessage(messages.unknowntitle)}
                       inProgress={
                         (
@@ -460,6 +467,11 @@ const RequestCard = ({ request, onTitleData }: RequestCardProps) => {
                 downloadItem={
                   requestData.media[
                     requestData.is4k ? 'downloadStatus4k' : 'downloadStatus'
+                  ]
+                }
+                pipelineStatus={
+                  requestData.media[
+                    requestData.is4k ? 'pipelineStatus4k' : 'pipelineStatus'
                   ]
                 }
                 title={isMovie(title) ? title.title : title.name}
