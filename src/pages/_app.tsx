@@ -22,6 +22,7 @@ import type { AppInitialProps, AppProps } from 'next/app';
 import App from 'next/app';
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Toaster } from 'react-hot-toast';
 import { IntlProvider } from 'react-intl';
 import { SWRConfig } from 'swr';

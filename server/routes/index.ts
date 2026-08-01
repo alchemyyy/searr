@@ -30,6 +30,7 @@ import { isPerson } from '@server/utils/typeHelpers';
 import { Router } from 'express';
 import authRoutes from './auth';
 import blocklistRoutes from './blocklist';
+import calendarRoutes from './calendar';
 import collectionRoutes from './collection';
 import discoverRoutes, { createTmdbWithRegionLanguage } from './discover';
 import issueRoutes from './issue';
@@ -169,6 +170,7 @@ router.use(
   }),
   blocklistRoutes
 );
+router.use('/calendar', isAuthenticated(), calendarRoutes);
 router.use('/movie', isAuthenticated(), movieRoutes);
 router.use('/tv', isAuthenticated(), tvRoutes);
 router.use('/media', isAuthenticated(), mediaRoutes);

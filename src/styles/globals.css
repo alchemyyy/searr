@@ -568,6 +568,278 @@
   }
 }
 
+/* ==========================================
+   React Big Calendar - Dark theme overrides
+   ========================================== */
+
+/* Base */
+.rbc-calendar {
+  @apply text-gray-200;
+  background: transparent;
+}
+
+/* Hide default toolbar - we use our own CustomToolbar */
+.rbc-toolbar {
+  display: none;
+}
+
+/* ---- Shared: headers, borders, backgrounds ---- */
+.rbc-header {
+  @apply border-b border-gray-700 bg-gray-800/60 py-2.5 text-sm font-semibold text-gray-300;
+}
+
+.rbc-header + .rbc-header {
+  @apply border-l border-gray-700;
+}
+
+.rbc-month-view {
+  @apply rounded-md border border-gray-700 bg-gray-900;
+}
+
+.rbc-time-view,
+.rbc-agenda-view {
+  @apply overflow-hidden rounded-md border border-gray-700 bg-gray-900;
+}
+
+/* Day cell backgrounds */
+.rbc-day-bg {
+  @apply bg-gray-900;
+  border-color: #374151 !important;
+}
+
+.rbc-day-bg + .rbc-day-bg {
+  @apply border-l;
+  border-color: #374151 !important;
+}
+
+.rbc-off-range-bg {
+  background-color: rgba(17, 24, 39, 0.7) !important;
+}
+
+/* Today highlight - subtle indigo tint, NOT white */
+.rbc-today {
+  background-color: rgba(79, 70, 229, 0.08) !important;
+}
+
+/* Date cell labels */
+.rbc-date-cell {
+  @apply px-2 py-1 text-right text-sm text-gray-500;
+}
+
+.rbc-date-cell.rbc-now {
+  @apply font-bold text-indigo-400;
+}
+
+/* ---- Month view: scrollable rows ---- */
+.rbc-month-view .rbc-row-content {
+  position: relative;
+  max-height: none;
+  min-height: 0;
+}
+
+.rbc-month-view .rbc-row-segment {
+  @apply px-1;
+}
+
+.rbc-month-view .rbc-month-row {
+  @apply border-gray-700;
+  height: calc(100vh / 5);
+  min-height: calc(100vh / 5);
+  max-height: calc(100vh / 5);
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  flex: none !important;
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 transparent;
+}
+
+.rbc-month-view .rbc-month-row::-webkit-scrollbar {
+  width: 4px;
+}
+
+.rbc-month-view .rbc-month-row::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rbc-month-view .rbc-month-row::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+  border-radius: 2px;
+}
+
+.rbc-month-row + .rbc-month-row {
+  @apply border-t border-gray-700;
+}
+
+.rbc-show-more {
+  display: none !important;
+}
+
+/* ---- Events (pills) ---- */
+.rbc-event {
+  @apply mb-0.5 rounded-lg px-2 py-0 text-xs font-medium;
+  outline: none !important;
+  white-space: normal !important;
+  height: auto !important;
+}
+
+.rbc-event:hover {
+  background-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+.rbc-event:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.rbc-event.rbc-selected {
+  background-color: rgba(99, 102, 241, 0.3) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.rbc-event-content {
+  overflow: visible !important;
+  white-space: normal !important;
+  text-overflow: unset !important;
+}
+
+/* ---- Week / Day time view ---- */
+.rbc-time-view {
+  @apply bg-gray-900;
+}
+
+.rbc-time-view .rbc-allday-cell {
+  @apply bg-gray-900;
+}
+
+.rbc-time-view .rbc-row {
+  min-height: 24px;
+}
+
+.rbc-time-header {
+  @apply border-gray-700 bg-gray-900;
+}
+
+.rbc-time-header-content {
+  @apply border-l border-gray-700;
+}
+
+.rbc-time-header-gutter {
+  display: none !important;
+}
+
+/* Override the allday row background */
+.rbc-time-header .rbc-overflowing {
+  @apply border-gray-700;
+}
+
+.rbc-time-content {
+  @apply border-t border-gray-700 bg-gray-900;
+}
+
+.rbc-time-content > * + * > * {
+  @apply border-l border-gray-700;
+}
+
+/* Time gutter (left column with hours) */
+.rbc-time-gutter {
+  @apply bg-gray-900;
+}
+
+.rbc-time-gutter .rbc-timeslot-group {
+  @apply border-gray-700;
+}
+
+.rbc-timeslot-group {
+  @apply border-b border-gray-700;
+}
+
+.rbc-time-slot {
+  @apply text-xs text-gray-500;
+}
+
+.rbc-day-slot .rbc-time-slot {
+  border-top: 1px solid rgba(55, 65, 81, 0.4) !important;
+}
+
+/* Day column backgrounds in week view */
+.rbc-day-slot {
+  @apply bg-gray-900;
+}
+
+/* Current time indicator */
+.rbc-current-time-indicator {
+  @apply bg-indigo-500;
+  height: 2px;
+}
+
+/* Hide redundant time labels on events in week view */
+.rbc-event-label {
+  display: none !important;
+}
+
+/* Hide the entire time grid in week view - events are allDay */
+.rbc-time-view .rbc-time-content {
+  display: none !important;
+}
+
+/* Let the allDay section expand to fill the week view */
+.rbc-time-view .rbc-allday-cell {
+  min-height: 200px;
+}
+
+.rbc-time-view .rbc-row-content {
+  max-height: none;
+}
+
+/* Events in week/day view */
+.rbc-time-view .rbc-event {
+  border-radius: 0.5rem;
+  padding: 2px 8px;
+}
+
+.rbc-time-view .rbc-event:hover {
+  background-color: rgba(99, 102, 241, 0.25) !important;
+}
+
+/* ---- Agenda view ---- */
+.rbc-agenda-view table.rbc-agenda-table {
+  @apply border-gray-700;
+}
+
+.rbc-agenda-view table.rbc-agenda-table thead > tr > th {
+  @apply border-b border-gray-700 bg-gray-800/60 px-4 py-2 text-left text-sm font-semibold text-gray-300;
+}
+
+.rbc-agenda-view table.rbc-agenda-table tbody > tr > td {
+  @apply border-b border-gray-700 px-4 py-2 text-sm text-gray-300;
+}
+
+.rbc-agenda-view table.rbc-agenda-table tbody > tr > td + td {
+  @apply border-l border-gray-700;
+}
+
+.rbc-agenda-view table.rbc-agenda-table tbody > tr {
+  @apply transition duration-150;
+}
+
+.rbc-agenda-view table.rbc-agenda-table tbody > tr:hover {
+  @apply bg-gray-800/50;
+}
+
+.rbc-agenda-date-cell,
+.rbc-agenda-time-cell {
+  @apply whitespace-nowrap text-gray-400;
+}
+
+.rbc-agenda-event-cell {
+  @apply cursor-pointer text-gray-200;
+}
+
+.rbc-agenda-empty {
+  @apply p-8 text-center text-gray-500;
+}
+
 .ptr--ptr {
   box-shadow: initial !important;
   position: absolute !important;
