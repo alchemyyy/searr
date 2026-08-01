@@ -146,7 +146,11 @@ const MovieDetails = ({ movie }: MovieDetailsProps) => {
   } = useSWR<MovieDetailsType>(`/api/v1/movie/${router.query.movieId}`, {
     fallbackData: movie,
     refreshInterval: (latest) =>
-      mediaRefreshInterval(latest?.mediaInfo, sawDownload, 15000),
+      mediaRefreshInterval(
+        latest?.mediaInfo,
+        sawDownload,
+        settings.currentSettings.downloadRefreshIntervalMS
+      ),
   });
 
   const { data: ratingData } = useSWR<RatingResponse>(

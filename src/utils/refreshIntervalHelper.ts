@@ -1,4 +1,5 @@
 import { MediaStatus } from '@server/constants/media';
+import { getDownloadRefreshInterval } from '@server/constants/settings';
 import type Media from '@server/entity/Media';
 import type { DownloadingItem } from '@server/lib/downloadtracker';
 
@@ -18,38 +19,33 @@ export const getRequestDownloadStatus = (
 };
 
 export const refreshIntervalHelper = (
-  downloadItem: {
+  downloadItems: {
     downloadStatus: DownloadingItem[] | undefined;
     downloadStatus4k: DownloadingItem[] | undefined;
   },
-  timer: number
-) => {
-  if (
-    (downloadItem.downloadStatus ?? []).length > 0 ||
-    (downloadItem.downloadStatus4k ?? []).length > 0
-  ) {
-    return timer;
-  } else {
-    return 0;
-  }
+  activeRefreshIntervalMS: number
+): number => {
+  const hasActiveDownloads: boolean =
+    (downloadItems.downloadStatus ?? []).length > 0 ||
+    (downloadItems.downloadStatus4k ?? []).length > 0;
+
+  return getDownloadRefreshInterval(
+    hasActiveDownloads,
+    activeRefreshIntervalMS
+  );
 };
 
 export const mediaRefreshInterval = (
   media: Media | undefined,
   sawDownload: { current: boolean },
-  timer: number
-) => {
+  activeRefreshIntervalMS: number
+): number => {
   if (
-    refreshIntervalHelper(
-      {
-        downloadStatus: media?.downloadStatus,
-        downloadStatus4k: media?.downloadStatus4k,
-      },
-      timer
-    )
+    (media?.downloadStatus ?? []).length > 0 ||
+    (media?.downloadStatus4k ?? []).length > 0
   ) {
     sawDownload.current = true;
-    return timer;
+    return activeRefreshIntervalMS;
   }
 
   // The queue empties before the media turns available, and briefly on every sync reset
@@ -59,5 +55,8 @@ export const mediaRefreshInterval = (
       item?.status4k === MediaStatus.PROCESSING
   );
 
-  return sawDownload.current && processing ? timer : 0;
+  return getDownloadRefreshInterval(
+    sawDownload.current && processing,
+    activeRefreshIntervalMS
+  );
 };

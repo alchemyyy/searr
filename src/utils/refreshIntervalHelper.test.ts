@@ -1,4 +1,5 @@
 import { MediaStatus, MediaType } from '@server/constants/media';
+import { IDLE_DOWNLOAD_REFRESH_INTERVAL_MS } from '@server/constants/settings';
 import type Media from '@server/entity/Media';
 import type { DownloadingItem } from '@server/lib/downloadtracker';
 import assert from 'node:assert/strict';
@@ -148,7 +149,9 @@ const createMedia = (overrides: Partial<Media> = {}): Media =>
   }) as unknown as Media;
 
 describe('mediaRefreshInterval', () => {
-  it('keeps polling while the media is processing after its download leaves the queue', () => {
+  const activeRefreshIntervalMS = 2_000;
+
+  it('keeps the active interval while the media is processing after its download leaves the queue', () => {
     const sawDownload = { current: false };
 
     mediaRefreshInterval(
@@ -157,42 +160,42 @@ describe('mediaRefreshInterval', () => {
         downloadStatus: [createDownloadItem({ downloadId: 'movie-1' })],
       }),
       sawDownload,
-      15000
+      activeRefreshIntervalMS
     );
 
     assert.equal(
       mediaRefreshInterval(
         createMedia({ status: MediaStatus.PROCESSING }),
         sawDownload,
-        15000
+        activeRefreshIntervalMS
       ),
-      15000
+      activeRefreshIntervalMS
     );
   });
 
-  it('does not poll processing media when no download was seen', () => {
+  it('uses the idle interval for processing media when no download was seen', () => {
     assert.equal(
       mediaRefreshInterval(
         createMedia({ status: MediaStatus.PROCESSING }),
         { current: false },
-        15000
+        activeRefreshIntervalMS
       ),
-      0
+      IDLE_DOWNLOAD_REFRESH_INTERVAL_MS
     );
   });
 
-  it('stops polling once the media is available', () => {
+  it('returns to the idle interval once the media is available', () => {
     assert.equal(
       mediaRefreshInterval(
         createMedia({ status: MediaStatus.AVAILABLE }),
         { current: true },
-        15000
+        activeRefreshIntervalMS
       ),
-      0
+      IDLE_DOWNLOAD_REFRESH_INTERVAL_MS
     );
   });
 
-  it('keeps polling while a season is processing on a partially available show', () => {
+  it('keeps the active interval while a season is processing on a partially available show', () => {
     assert.equal(
       mediaRefreshInterval(
         createMedia({
@@ -203,13 +206,13 @@ describe('mediaRefreshInterval', () => {
           ] as Media['seasons'],
         }),
         { current: true },
-        15000
+        activeRefreshIntervalMS
       ),
-      15000
+      activeRefreshIntervalMS
     );
   });
 
-  it('keeps polling while a 4K season is processing', () => {
+  it('keeps the active interval while a 4K season is processing', () => {
     assert.equal(
       mediaRefreshInterval(
         createMedia({
@@ -224,9 +227,9 @@ describe('mediaRefreshInterval', () => {
           ] as Media['seasons'],
         }),
         { current: true },
-        15000
+        activeRefreshIntervalMS
       ),
-      15000
+      activeRefreshIntervalMS
     );
   });
 });

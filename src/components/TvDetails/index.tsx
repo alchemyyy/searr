@@ -149,7 +149,11 @@ const TvDetails = ({ tv }: TvDetailsProps) => {
   } = useSWR<TvDetailsType>(`/api/v1/tv/${router.query.tvId}`, {
     fallbackData: tv,
     refreshInterval: (latest) =>
-      mediaRefreshInterval(latest?.mediaInfo, sawDownload, 15000),
+      mediaRefreshInterval(
+        latest?.mediaInfo,
+        sawDownload,
+        settings.currentSettings.downloadRefreshIntervalMS
+      ),
   });
 
   const { data: ratingData } = useSWR<RTRating>(
