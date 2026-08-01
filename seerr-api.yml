@@ -253,6 +253,11 @@ components:
         versionCheck:
           type: boolean
           example: false
+        downloadRefreshIntervalMS:
+          type: number
+          minimum: 1000
+          maximum: 300000
+          example: 15000
     NetworkSettings:
       type: object
       properties:
@@ -708,6 +713,7 @@ components:
       required:
         - initialized
         - plexClientIdentifier
+        - downloadRefreshIntervalMS
       properties:
         initialized:
           type: boolean
@@ -717,6 +723,12 @@ components:
           format: uuid
           description: Instance Plex OAuth client identifier
           example: 6919275e-142a-48d8-be6b-93594cbd4626
+        downloadRefreshIntervalMS:
+          type: number
+          minimum: 1000
+          maximum: 300000
+          description: Download progress polling interval in milliseconds
+          example: 15000
     MovieResult:
       type: object
       required:

@@ -1,4 +1,5 @@
 import { MediaServerType } from '@server/constants/server';
+import { DEFAULT_DOWNLOAD_REFRESH_INTERVAL_MS } from '@server/constants/settings';
 import type { PublicSettingsResponse } from '@server/interfaces/api/settingsInterfaces';
 import React from 'react';
 import useSWR from 'swr';
@@ -33,6 +34,7 @@ const defaultSettings = {
   youtubeUrl: '',
   versionCheck: true,
   plexClientIdentifier: '',
+  downloadRefreshIntervalMS: DEFAULT_DOWNLOAD_REFRESH_INTERVAL_MS,
 };
 
 export const SettingsContext = React.createContext<SettingsContextProps>({

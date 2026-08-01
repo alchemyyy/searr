@@ -1,4 +1,8 @@
 import { MediaServerType } from '@server/constants/server';
+import {
+  DEFAULT_DOWNLOAD_REFRESH_INTERVAL_MS,
+  normalizeDownloadRefreshInterval,
+} from '@server/constants/settings';
 import { Permission } from '@server/lib/permissions';
 import { runMigrations } from '@server/lib/settings/migrator';
 import type { AvailableLocale } from '@server/types/languages';
@@ -157,6 +161,7 @@ export interface MainSettings {
   locale: string;
   youtubeUrl: string;
   versionCheck: boolean;
+  downloadRefreshIntervalMS: number;
 }
 
 export interface ProxySettings {
@@ -217,6 +222,7 @@ interface FullPublicSettings extends PublicSettings {
   youtubeUrl: string;
   versionCheck: boolean;
   plexClientIdentifier: string;
+  downloadRefreshIntervalMS: number;
 }
 
 export interface NotificationAgentConfig {
@@ -432,6 +438,7 @@ class Settings {
         locale: 'en',
         youtubeUrl: '',
         versionCheck: true,
+        downloadRefreshIntervalMS: DEFAULT_DOWNLOAD_REFRESH_INTERVAL_MS,
       },
       plex: {
         name: '',
@@ -636,6 +643,9 @@ class Settings {
     if (initialSettings) {
       this.data = mergeSettings(this.data, initialSettings);
     }
+    this.data.main.downloadRefreshIntervalMS = normalizeDownloadRefreshInterval(
+      this.data.main.downloadRefreshIntervalMS
+    );
   }
 
   get main(): MainSettings {
@@ -644,6 +654,9 @@ class Settings {
 
   set main(data: MainSettings) {
     this.data.main = mergeSettings(this.data.main, data);
+    this.data.main.downloadRefreshIntervalMS = normalizeDownloadRefreshInterval(
+      this.data.main.downloadRefreshIntervalMS
+    );
   }
 
   get plex(): PlexSettings {
@@ -739,6 +752,7 @@ class Settings {
       youtubeUrl: this.data.main.youtubeUrl,
       versionCheck: this.data.main.versionCheck,
       plexClientIdentifier: this.data.clientId,
+      downloadRefreshIntervalMS: this.data.main.downloadRefreshIntervalMS,
     };
   }
 
@@ -840,6 +854,18 @@ class Settings {
       }
 
       this.data = merged;
+      const normalizedDownloadRefreshInterval: number =
+        normalizeDownloadRefreshInterval(
+          this.data.main.downloadRefreshIntervalMS
+        );
+      if (
+        normalizedDownloadRefreshInterval !==
+        this.data.main.downloadRefreshIntervalMS
+      ) {
+        this.data.main.downloadRefreshIntervalMS =
+          normalizedDownloadRefreshInterval;
+        change = true;
+      }
     } else if (data) {
       this.data = JSON.parse(data);
     }

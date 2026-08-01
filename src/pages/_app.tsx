@@ -14,6 +14,7 @@ import { polyfillIntl } from '@app/utils/polyfillIntl';
 import { getHostAndPort } from '@app/utils/urlHelper';
 import '@fontsource-variable/inter';
 import { MediaServerType } from '@server/constants/server';
+import { DEFAULT_DOWNLOAD_REFRESH_INTERVAL_MS } from '@server/constants/settings';
 import type { PublicSettingsResponse } from '@server/interfaces/api/settingsInterfaces';
 import type { AvailableLocale } from '@server/types/languages';
 import axios from 'axios';
@@ -263,6 +264,7 @@ CoreApp.getInitialProps = async (initialProps) => {
     youtubeUrl: '',
     versionCheck: true,
     plexClientIdentifier: '',
+    downloadRefreshIntervalMS: DEFAULT_DOWNLOAD_REFRESH_INTERVAL_MS,
   };
 
   if (ctx.res) {

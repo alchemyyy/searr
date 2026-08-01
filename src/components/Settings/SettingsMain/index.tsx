@@ -16,6 +16,13 @@ import defineMessages from '@app/utils/defineMessages';
 import { isValidURL } from '@app/utils/urlValidationHelper';
 import { ArrowDownOnSquareIcon } from '@heroicons/react/24/outline';
 import { ArrowPathIcon } from '@heroicons/react/24/solid';
+import {
+  DEFAULT_DOWNLOAD_REFRESH_INTERVAL_MS,
+  IDLE_DOWNLOAD_REFRESH_INTERVAL_MS,
+  MAXIMUM_DOWNLOAD_REFRESH_INTERVAL_MS,
+  MILLISECONDS_PER_SECOND,
+  MINIMUM_DOWNLOAD_REFRESH_INTERVAL_MS,
+} from '@server/constants/settings';
 import type { UserSettingsGeneralResponse } from '@server/interfaces/api/userSettingsInterfaces';
 import type { MainSettings } from '@server/lib/settings';
 import type { AvailableLocale } from '@server/types/languages';
@@ -76,6 +83,17 @@ const messages = defineMessages('components.Settings.SettingsMain', {
     'Base URL for YouTube videos if a self-hosted YouTube instance is used.',
   versionCheck: 'Version Check',
   versionCheckTip: 'Automatically check for new versions on GitHub.',
+  downloadRefreshInterval: 'Download Progress Refresh Interval',
+  downloadRefreshIntervalTip:
+    'How often to refresh active download progress, in seconds. Idle pages poll no more frequently than every {idleSeconds} seconds.',
+  validationDownloadRefreshIntervalInteger:
+    'Refresh interval must be a whole number of seconds.',
+  validationDownloadRefreshIntervalMax:
+    'Refresh interval must be at most {maximum} seconds.',
+  validationDownloadRefreshIntervalMin:
+    'Refresh interval must be at least {minimum} second.',
+  validationDownloadRefreshIntervalType:
+    'Refresh interval must be a whole number of seconds.',
   validationUrl: 'You must provide a valid URL',
   validationUrlTrailingSlash: 'URL must not end in a trailing slash',
 });
@@ -126,6 +144,30 @@ const SettingsMain = () => {
         'no-trailing-slash',
         intl.formatMessage(messages.validationUrlTrailingSlash),
         (value) => !value || !value.endsWith('/')
+      ),
+    downloadRefreshIntervalSeconds: Yup.number()
+      .typeError(
+        intl.formatMessage(messages.validationDownloadRefreshIntervalType)
+      )
+      .integer(
+        intl.formatMessage(messages.validationDownloadRefreshIntervalInteger)
+      )
+      .min(
+        MINIMUM_DOWNLOAD_REFRESH_INTERVAL_MS / MILLISECONDS_PER_SECOND,
+        intl.formatMessage(messages.validationDownloadRefreshIntervalMin, {
+          minimum:
+            MINIMUM_DOWNLOAD_REFRESH_INTERVAL_MS / MILLISECONDS_PER_SECOND,
+        })
+      )
+      .max(
+        MAXIMUM_DOWNLOAD_REFRESH_INTERVAL_MS / MILLISECONDS_PER_SECOND,
+        intl.formatMessage(messages.validationDownloadRefreshIntervalMax, {
+          maximum:
+            MAXIMUM_DOWNLOAD_REFRESH_INTERVAL_MS / MILLISECONDS_PER_SECOND,
+        })
+      )
+      .required(
+        intl.formatMessage(messages.validationDownloadRefreshIntervalType)
       ),
   });
 
@@ -186,6 +228,9 @@ const SettingsMain = () => {
             cacheImages: data?.cacheImages,
             youtubeUrl: data?.youtubeUrl,
             versionCheck: data?.versionCheck,
+            downloadRefreshIntervalSeconds:
+              (data?.downloadRefreshIntervalMS ??
+                DEFAULT_DOWNLOAD_REFRESH_INTERVAL_MS) / MILLISECONDS_PER_SECOND,
           }}
           enableReinitialize
           validationSchema={MainSettingsSchema}
@@ -209,6 +254,9 @@ const SettingsMain = () => {
                 cacheImages: values.cacheImages,
                 youtubeUrl: values.youtubeUrl,
                 versionCheck: values?.versionCheck,
+                downloadRefreshIntervalMS:
+                  values.downloadRefreshIntervalSeconds *
+                  MILLISECONDS_PER_SECOND,
               });
               mutate('/api/v1/settings/public');
               mutate('/api/v1/status');
@@ -586,6 +634,49 @@ const SettingsMain = () => {
                         );
                       }}
                     />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <label
+                    htmlFor="downloadRefreshIntervalSeconds"
+                    className="text-label"
+                  >
+                    <span className="mr-2">
+                      {intl.formatMessage(messages.downloadRefreshInterval)}
+                    </span>
+                    <SettingsBadge badgeType="advanced" />
+                    <span className="label-tip">
+                      {intl.formatMessage(messages.downloadRefreshIntervalTip, {
+                        idleSeconds:
+                          IDLE_DOWNLOAD_REFRESH_INTERVAL_MS /
+                          MILLISECONDS_PER_SECOND,
+                      })}
+                    </span>
+                  </label>
+                  <div className="form-input-area">
+                    <Field
+                      id="downloadRefreshIntervalSeconds"
+                      name="downloadRefreshIntervalSeconds"
+                      type="number"
+                      min={
+                        MINIMUM_DOWNLOAD_REFRESH_INTERVAL_MS /
+                        MILLISECONDS_PER_SECOND
+                      }
+                      max={
+                        MAXIMUM_DOWNLOAD_REFRESH_INTERVAL_MS /
+                        MILLISECONDS_PER_SECOND
+                      }
+                      step={1}
+                      className="short"
+                    />
+                    {errors.downloadRefreshIntervalSeconds &&
+                      touched.downloadRefreshIntervalSeconds &&
+                      typeof errors.downloadRefreshIntervalSeconds ===
+                        'string' && (
+                        <div className="error">
+                          {errors.downloadRefreshIntervalSeconds}
+                        </div>
+                      )}
                   </div>
                 </div>
                 <div className="form-row">
