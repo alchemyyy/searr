@@ -22,6 +22,7 @@ import { MediaRequestStatus, MediaStatus } from '@server/constants/media';
 import type { MediaRequest } from '@server/entity/MediaRequest';
 import type { NonFunctionProperties } from '@server/interfaces/api/common';
 import type { RequestResultsResponse } from '@server/interfaces/api/requestInterfaces';
+import type { DownloadingItem } from '@server/lib/downloadtracker';
 import type { MovieDetails } from '@server/models/Movie';
 import type { TvDetails } from '@server/models/Tv';
 import axios from 'axios';
@@ -49,10 +50,139 @@ const messages = defineMessages('components.RequestList.RequestItem', {
   removearr: 'Remove from {arr}',
   removemediaerror: 'Something went wrong while removing the media.',
   profileName: 'Profile',
+  downloadEpisode: 'S{seasonNumber}E{episodeNumber}',
+  downloadFailed: 'Failed',
+  downloadImportBlocked: 'Import Blocked',
+  downloadImportPending: 'Import Pending',
+  downloadImported: 'Imported',
+  downloadImporting: 'Importing',
 });
 
 const isMovie = (movie: MovieDetails | TvDetails): movie is MovieDetails => {
   return (movie as MovieDetails).title !== undefined;
+};
+
+interface DownloadPillStyle {
+  borderColor: string;
+  fillColor: string;
+}
+
+interface DownloadProgressPillProps {
+  downloadItem: DownloadingItem;
+  isTV: boolean;
+}
+
+const getDownloadPillStyle = (
+  downloadItem: DownloadingItem
+): DownloadPillStyle => {
+  switch (downloadItem.trackedDownloadState) {
+    case 'failed':
+    case 'failedPending':
+      return {
+        borderColor: 'border-red-500',
+        fillColor: 'bg-red-600/80',
+      };
+    case 'importBlocked':
+    case 'importPending':
+      return {
+        borderColor: 'border-yellow-500',
+        fillColor: 'bg-yellow-500/80',
+      };
+    case 'importing':
+    case 'imported':
+      return {
+        borderColor: 'border-green-500',
+        fillColor: 'bg-green-500/80',
+      };
+  }
+
+  switch (downloadItem.trackedDownloadStatus) {
+    case 'error':
+      return {
+        borderColor: 'border-red-500',
+        fillColor: 'bg-red-600/80',
+      };
+    case 'warning':
+      return {
+        borderColor: 'border-yellow-500',
+        fillColor: 'bg-yellow-500/80',
+      };
+    default:
+      return {
+        borderColor: 'border-indigo-500',
+        fillColor: 'bg-indigo-500/80',
+      };
+  }
+};
+
+const DownloadProgressPill = ({
+  downloadItem,
+  isTV,
+}: DownloadProgressPillProps) => {
+  const intl = useIntl();
+  const progress: number =
+    downloadItem.size > 0
+      ? Math.min(
+          100,
+          Math.max(
+            0,
+            Math.round(
+              ((downloadItem.size - downloadItem.sizeLeft) /
+                downloadItem.size) *
+                100
+            )
+          )
+        )
+      : 0;
+  const style: DownloadPillStyle = getDownloadPillStyle(downloadItem);
+  const episodeLabel: string | undefined =
+    isTV && downloadItem.episode
+      ? intl.formatMessage(messages.downloadEpisode, {
+          seasonNumber: downloadItem.episode.seasonNumber,
+          episodeNumber: downloadItem.episode.episodeNumber,
+        })
+      : undefined;
+  let stateLabel: string;
+
+  switch (downloadItem.trackedDownloadState) {
+    case 'importing':
+      stateLabel = intl.formatMessage(messages.downloadImporting);
+      break;
+    case 'importPending':
+      stateLabel = intl.formatMessage(messages.downloadImportPending);
+      break;
+    case 'importBlocked':
+      stateLabel = intl.formatMessage(messages.downloadImportBlocked);
+      break;
+    case 'failed':
+    case 'failedPending':
+      stateLabel = intl.formatMessage(messages.downloadFailed);
+      break;
+    case 'imported':
+      stateLabel = intl.formatMessage(messages.downloadImported);
+      break;
+    default:
+      stateLabel = `${progress}%`;
+      break;
+  }
+
+  const displayText: string = [episodeLabel, stateLabel]
+    .filter((value): value is string => Boolean(value))
+    .join(' - ');
+
+  return (
+    <span
+      className={`relative inline-flex cursor-default overflow-hidden rounded-full border !bg-gray-700/80 text-xs font-semibold leading-5 ${style.borderColor}`}
+    >
+      <span
+        className={`absolute left-0 top-0 h-full ${style.fillColor} transition-all duration-200 ease-in-out`}
+        style={{ width: `${progress}%` }}
+      />
+      <span className="relative z-20 whitespace-nowrap px-2 text-white">
+        {displayText}
+      </span>
+    </span>
+  );
 };
 
 interface RequestItemErrorProps {
@@ -419,6 +549,11 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
     );
   }
 
+  const downloadItems: DownloadingItem[] =
+    requestData.media[
+      requestData.is4k ? 'downloadStatus4k' : 'downloadStatus'
+    ] ?? [];
+
   return (
     <>
       <RequestModal
@@ -433,7 +568,7 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
           setShowEditModal(false);
         }}
       />
-      <div className="relative flex w-full flex-col justify-between overflow-hidden rounded-xl bg-gray-800 py-2 text-gray-400 shadow-md ring-1 ring-gray-700 xl:h-28 xl:flex-row">
+      <div className="relative flex w-full flex-col justify-between overflow-hidden rounded-xl bg-gray-800 py-2 text-gray-400 shadow-md ring-1 ring-gray-700 xl:flex-row">
         {title.backdropPath && (
           <div className="absolute inset-0 z-0 w-full bg-cover bg-center xl:w-2/3">
             <CachedImage
@@ -453,7 +588,7 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
           </div>
         )}
         <div className="relative flex w-full flex-col justify-between overflow-hidden sm:flex-row">
-          <div className="relative z-10 flex w-full items-center overflow-hidden pl-4 pr-4 sm:pr-0 xl:w-7/12 2xl:w-2/3">
+          <div className="relative z-10 flex w-full flex-wrap items-center pl-4 pr-4 sm:pr-0 xl:w-7/12 2xl:w-2/3">
             <Link
               href={
                 requestData.type === 'movie'
@@ -514,6 +649,19 @@ const RequestItem = ({ request, revalidateList }: RequestItemProps) => {
                 </div>
               )}
             </div>
+            {downloadItems.length > 0 && (
+              <div className="flex flex-1 flex-wrap content-center items-center gap-1 px-2 py-1">
+                {downloadItems.map((downloadItem, index) => (
+                  <DownloadProgressPill
+                    key={`${
+                      downloadItem.downloadId || downloadItem.externalId
+                    }-${index}`}
+                    downloadItem={downloadItem}
+                    isTV={requestData.type === 'tv'}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           <div className="z-10 ml-4 mt-4 flex w-full flex-col justify-center gap-1 overflow-hidden pr-4 text-sm sm:ml-2 sm:mt-0 xl:flex-1 xl:pr-0">
             <div className="card-field">
