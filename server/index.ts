@@ -24,6 +24,7 @@ import clearCookies from '@server/middleware/clearcookies';
 import routes from '@server/routes';
 import avatarproxy from '@server/routes/avatarproxy';
 import imageproxy from '@server/routes/imageproxy';
+import jellyfinWebhookRoutes from '@server/routes/webhooks/jellyfin';
 import { appDataPermissions } from '@server/utils/appDataVolume';
 import { getAppVersion } from '@server/utils/appVersion';
 import createCustomProxyAgent, {
@@ -161,6 +162,8 @@ app
     server.use(cookieParser());
     server.use(express.json());
     server.use(express.urlencoded({ extended: true }));
+    // Jellyfin authenticates with the Seerr API key and cannot provide a CSRF token
+    server.use('/api/v1/webhook/jellyfin', jellyfinWebhookRoutes);
     server.use((req, _res, next) => {
       try {
         const descriptor = Object.getOwnPropertyDescriptor(req, 'ip');

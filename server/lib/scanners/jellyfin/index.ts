@@ -30,6 +30,24 @@ interface JellyfinSyncStatus extends StatusBase {
   libraries: Library[];
 }
 
+export interface WebhookProcessResult {
+  itemId: string;
+  itemName: string;
+  itemType: string;
+  effectiveId: string;
+  skipped: boolean;
+}
+
+interface WebhookQueueEntry {
+  dirty: boolean;
+}
+
+// Collapse concurrent episode events into series-level scans without losing updates
+const webhookCollapseQueue: Map<string, WebhookQueueEntry> = new Map<
+  string,
+  WebhookQueueEntry
+>();
+
 class JellyfinScanner
   extends BaseScanner<JellyfinLibraryItem>
   implements RunnableScanner<JellyfinSyncStatus>
@@ -539,6 +557,108 @@ class JellyfinScanner
     }
   }
 
+  /** Process one webhook item, collapsing TV events into series-level scans. */
+  public async processItemById(itemId: string): Promise<WebhookProcessResult> {
+    const settings = getSettings();
+
+    if (
+      settings.main.mediaServerType !== MediaServerType.JELLYFIN &&
+      settings.main.mediaServerType !== MediaServerType.EMBY
+    ) {
+      throw new Error('Jellyfin/Emby is not configured as the media server');
+    }
+
+    const userRepository = getRepository(User);
+    const admin = await userRepository.findOne({
+      where: { id: 1 },
+      select: ['id', 'jellyfinUserId', 'jellyfinDeviceId'],
+      order: { id: 'ASC' },
+    });
+
+    if (!admin) {
+      throw new Error('No admin user configured');
+    }
+
+    this.jfClient = new JellyfinAPI(
+      getHostname(),
+      settings.jellyfin.apiKey,
+      admin.jellyfinDeviceId
+    );
+    this.jfClient.setUserId(admin.jellyfinUserId ?? '');
+
+    const item = await this.jfClient.getItemData(itemId);
+    if (!item) {
+      throw new Error(`Item not found in Jellyfin: ${itemId}`);
+    }
+
+    // Scan a TV item's parent series so all season availability is refreshed
+    const effectiveId =
+      item.Type === 'Episode' || item.Type === 'Season'
+        ? (item.SeriesId ?? item.SeasonId ?? item.Id)
+        : item.Id;
+
+    const result: WebhookProcessResult = {
+      itemId,
+      itemName: item.SeriesName ?? item.Name,
+      itemType: item.Type,
+      effectiveId,
+      skipped: false,
+    };
+
+    const existing = webhookCollapseQueue.get(effectiveId);
+    if (existing) {
+      existing.dirty = true;
+      this.log(
+        `Webhook: ${result.itemName}; rescan queued (processing in progress)`,
+        'debug'
+      );
+      return { ...result, skipped: true };
+    }
+
+    const entry: WebhookQueueEntry = { dirty: false };
+    webhookCollapseQueue.set(effectiveId, entry);
+
+    try {
+      do {
+        // Clear before scanning so a concurrent event can request another pass
+        entry.dirty = false;
+
+        this.enable4kMovie = settings.radarr.some((radarr) => radarr.is4k);
+        this.enable4kShow = settings.sonarr.some((sonarr) => sonarr.is4k);
+        this.processedAnidbSeason = new Map();
+        await animeList.sync();
+
+        if (item.Type === 'Movie') {
+          await this.processJellyfinMovie(item);
+        } else if (
+          item.Type === 'Series' ||
+          item.Type === 'Season' ||
+          item.Type === 'Episode'
+        ) {
+          await this.processJellyfinShow(item);
+        } else {
+          throw new Error(`Unsupported item type: ${item.Type}`);
+        }
+
+        if (entry.dirty) {
+          this.log(
+            `Webhook: ${result.itemName}; changes arrived during processing, rescanning`,
+            'info'
+          );
+        }
+      } while (entry.dirty);
+
+      this.log(
+        `Webhook: Processed ${result.itemName} (${item.Type}${item.Type !== 'Movie' ? `, series: ${effectiveId}` : ''})`,
+        'info'
+      );
+
+      return result;
+    } finally {
+      webhookCollapseQueue.delete(effectiveId);
+    }
+  }
+
   public status(): JellyfinSyncStatus {
     return {
       running: this.running,
@@ -554,3 +674,11 @@ export const jellyfinFullScanner = new JellyfinScanner();
 export const jellyfinRecentScanner = new JellyfinScanner({
   isRecentOnly: true,
 });
+
+/** Process one item in an isolated scanner instance. */
+export async function processJellyfinItemById(
+  itemId: string
+): Promise<WebhookProcessResult> {
+  const scanner = new JellyfinScanner();
+  return scanner.processItemById(itemId);
+}
