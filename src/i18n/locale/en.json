@@ -510,6 +510,7 @@
   "components.ReleaseCalendar.MediaItemModal.noOverview": "No overview available.",
   "components.ReleaseCalendar.MediaItemModal.openMovie": "Open Movie",
   "components.ReleaseCalendar.MediaItemModal.openSeries": "Open Series",
+  "components.ReleaseCalendar.MediaItemModal.playOnJellyfin": "Play on Jellyfin",
   "components.ReleaseCalendar.MediaItemModal.releaseDate": "Release Date",
   "components.ReleaseCalendar.MediaItemModal.runtime": "{minutes} min",
   "components.ReleaseCalendar.MediaItemModal.season": "Season {seasonNumber}",

@@ -16,6 +16,7 @@ import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { DbAwareColumn, resolveDbType } from '@server/utils/DbColumnHelper';
 import { getHostname } from '@server/utils/getHostname';
+import { buildJellyfinMediaURL } from '@server/utils/jellyfin';
 import {
   AfterLoad,
   Column,
@@ -260,21 +261,23 @@ class Media {
         }
       }
     } else {
-      const pageName =
-        getSettings().main.mediaServerType == MediaServerType.EMBY
-          ? 'item'
-          : 'details';
       const { serverId, externalHostname } = getSettings().jellyfin;
-      const jellyfinHost =
+      const mediaServerHost =
         externalHostname && externalHostname.length > 0
           ? externalHostname
           : getHostname();
+      const isEmby =
+        getSettings().main.mediaServerType === MediaServerType.EMBY;
 
       if (this.jellyfinMediaId) {
-        this.mediaUrl = `${jellyfinHost}/web/index.html#!/${pageName}?id=${this.jellyfinMediaId}&context=home&serverId=${serverId}`;
+        this.mediaUrl = isEmby
+          ? `${mediaServerHost}/web/index.html#!/item?id=${this.jellyfinMediaId}&context=home&serverId=${serverId}`
+          : buildJellyfinMediaURL(mediaServerHost, this.jellyfinMediaId);
       }
       if (this.jellyfinMediaId4k) {
-        this.mediaUrl4k = `${jellyfinHost}/web/index.html#!/${pageName}?id=${this.jellyfinMediaId4k}&context=home&serverId=${serverId}`;
+        this.mediaUrl4k = isEmby
+          ? `${mediaServerHost}/web/index.html#!/item?id=${this.jellyfinMediaId4k}&context=home&serverId=${serverId}`
+          : buildJellyfinMediaURL(mediaServerHost, this.jellyfinMediaId4k);
       }
     }
   }

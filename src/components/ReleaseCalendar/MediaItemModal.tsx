@@ -1,9 +1,10 @@
 import Badge from '@app/components/Common/Badge';
+import Button from '@app/components/Common/Button';
 import Modal from '@app/components/Common/Modal';
 import type { CalendarEvent } from '@app/components/ReleaseCalendar';
 import defineMessages from '@app/utils/defineMessages';
 import { Transition } from '@headlessui/react';
-import { FilmIcon, TvIcon } from '@heroicons/react/24/outline';
+import { FilmIcon, PlayIcon, TvIcon } from '@heroicons/react/24/outline';
 import { CalendarMediaItemType } from '@server/constants/calendar';
 import { isValid, parseISO } from 'date-fns';
 import Link from 'next/link';
@@ -13,6 +14,7 @@ import { useIntl } from 'react-intl';
 const messages = defineMessages('components.ReleaseCalendar.MediaItemModal', {
   openMovie: 'Open Movie',
   openSeries: 'Open Series',
+  playOnJellyfin: 'Play on Jellyfin',
   movie: 'Movie',
   tvshow: 'TV Show',
   season: 'Season {seasonNumber}',
@@ -175,24 +177,38 @@ const MediaItemModal = ({ event, isOpen, onClose }: MediaItemModalProps) => {
             </div>
           )}
 
-          {detailURL && (
-            <div className="pt-2">
-              <Link
-                href={detailURL}
-                className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
-              >
-                {isMovie ? (
-                  <>
-                    <FilmIcon className="h-4 w-4" />
-                    {intl.formatMessage(messages.openMovie)}
-                  </>
-                ) : (
-                  <>
-                    <TvIcon className="h-4 w-4" />
-                    {intl.formatMessage(messages.openSeries)}
-                  </>
-                )}
-              </Link>
+          {(data.jellyfinUrl || detailURL) && (
+            <div className="flex flex-wrap gap-2 pt-2">
+              {data.hasFile && data.jellyfinUrl && (
+                <Button
+                  as="a"
+                  href={data.jellyfinUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  buttonType="success"
+                >
+                  <PlayIcon className="mr-2 h-4 w-4" />
+                  {intl.formatMessage(messages.playOnJellyfin)}
+                </Button>
+              )}
+              {detailURL && (
+                <Link
+                  href={detailURL}
+                  className="inline-flex items-center gap-2 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-500"
+                >
+                  {isMovie ? (
+                    <>
+                      <FilmIcon className="h-4 w-4" />
+                      {intl.formatMessage(messages.openMovie)}
+                    </>
+                  ) : (
+                    <>
+                      <TvIcon className="h-4 w-4" />
+                      {intl.formatMessage(messages.openSeries)}
+                    </>
+                  )}
+                </Link>
+              )}
             </div>
           )}
         </div>
