@@ -19,6 +19,7 @@ export interface CalendarMediaItem {
   releaseDate?: string;
   runtime?: number;
   hasFile?: boolean;
+  jellyfinUrl?: string;
   seriesTitle?: string;
   seasonNumber?: number;
   episodeNumber?: number;
