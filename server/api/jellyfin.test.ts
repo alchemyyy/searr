@@ -66,4 +66,23 @@ describe('JellyfinAPI getEpisodes', () => {
       ['ep1']
     );
   });
+
+  it('keeps every season when no season is requested', async () => {
+    const jellyfin = buildJellyfin();
+    mock.method(getAxios(jellyfin), 'get', async () => ({
+      data: {
+        Items: [
+          { Id: 'ep1', SeasonId: 'season-1', LocationType: 'FileSystem' },
+          { Id: 'ep2', SeasonId: 'season-2', LocationType: 'FileSystem' },
+          { Id: 'ep-virtual', SeasonId: 'season-2', LocationType: 'Virtual' },
+        ],
+      },
+    }));
+
+    const episodes = await jellyfin.getEpisodes('test-series');
+    assert.deepStrictEqual(
+      episodes.map((episode) => episode.Id),
+      ['ep1', 'ep2']
+    );
+  });
 });
