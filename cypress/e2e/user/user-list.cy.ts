@@ -1,6 +1,5 @@
 const testUser = {
   username: 'Test User',
-  emailAddress: 'test@seeerr.dev',
   password: 'test1234',
 };
 
@@ -33,7 +32,6 @@ describe('User List', () => {
     cy.get('[data-testid=modal-title]').should('contain', 'Create Local User');
 
     cy.get('#username').type(testUser.username);
-    cy.get('#email').type(testUser.emailAddress);
     cy.get('#password').type(testUser.password);
 
     cy.intercept('/api/v1/user*').as('user');
@@ -44,13 +42,13 @@ describe('User List', () => {
     // Wait a little longer for the user list to fully re-render
     cy.wait(1000);
 
-    cy.get('[data-testid=user-list-row]').contains(testUser.emailAddress);
+    cy.get('[data-testid=user-list-row]').contains(testUser.username);
   });
 
   it('can delete the created local test user', () => {
     cy.visit('/users');
 
-    cy.contains('[data-testid=user-list-row]', testUser.emailAddress)
+    cy.contains('[data-testid=user-list-row]', testUser.username)
       .contains('Delete')
       .click();
 
@@ -64,7 +62,7 @@ describe('User List', () => {
     cy.wait(1000);
 
     cy.get('[data-testid=user-list-row]')
-      .contains(testUser.emailAddress)
+      .contains(testUser.username)
       .should('not.exist');
   });
 

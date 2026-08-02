@@ -16,15 +16,18 @@ import * as Yup from 'yup';
 const messages = defineMessages('components.Login', {
   loginwithapp: 'Login with {appName}',
   username: 'Username',
-  email: 'Email Address',
+  accountIdentifier: 'Email Address or Username',
   password: 'Password',
-  validationemailrequired: 'You must provide a valid email address',
+  validationAccountIdentifierRequired:
+    'You must provide an email address or username',
   validationpasswordrequired: 'You must provide a password',
   jellyfinLocalLoginHint:
     "If you haven't set an email address in your profile, use your {mediaServerName} username instead.",
   loginerror: 'Something went wrong while trying to sign in.',
-  credentialerror: 'The email address or password is incorrect.',
-  tipEmailHasTrailingWhitespace: 'The email ends with whitespace',
+  localCredentialError:
+    'The email address, username, or password is incorrect.',
+  tipAccountIdentifierHasTrailingWhitespace:
+    'The account identifier ends with whitespace',
   signingin: 'Signing In…',
   signin: 'Sign In',
   forgotpassword: 'Forgot Password?',
@@ -42,7 +45,7 @@ const LocalLogin = ({ revalidate }: LocalLoginProps) => {
 
   const LoginSchema = Yup.object().shape({
     email: Yup.string().required(
-      intl.formatMessage(messages.validationemailrequired)
+      intl.formatMessage(messages.validationAccountIdentifierRequired)
     ),
     password: Yup.string().required(
       intl.formatMessage(messages.validationpasswordrequired)
@@ -72,7 +75,7 @@ const LocalLogin = ({ revalidate }: LocalLoginProps) => {
           setLoginError(
             intl.formatMessage(
               axios.isAxiosError(e) && e.response?.status === 403
-                ? messages.credentialerror
+                ? messages.localCredentialError
                 : messages.loginerror
             )
           );
@@ -103,7 +106,9 @@ const LocalLogin = ({ revalidate }: LocalLoginProps) => {
                     <Field
                       id="email"
                       name="email"
-                      placeholder={intl.formatMessage(messages.email)}
+                      placeholder={intl.formatMessage(
+                        messages.accountIdentifier
+                      )}
                       type="text"
                       inputMode="email"
                       data-testid="email"
@@ -115,7 +120,7 @@ const LocalLogin = ({ revalidate }: LocalLoginProps) => {
                     <div className="warning label-tip flex items-center">
                       <ExclamationTriangleIcon className="mr-1 h-4 w-4" />
                       {intl.formatMessage(
-                        messages.tipEmailHasTrailingWhitespace
+                        messages.tipAccountIdentifierHasTrailingWhitespace
                       )}
                     </div>
                   )}
