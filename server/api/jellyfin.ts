@@ -95,6 +95,7 @@ export interface JellyfinLibrary {
 export interface JellyfinLibraryItem {
   Name: string;
   Id: string;
+  ServerId?: string;
   HasSubtitles: boolean;
   Type: 'Movie' | 'Episode' | 'Season' | 'Series';
   LocationType: 'FileSystem' | 'Offline' | 'Remote' | 'Virtual';
@@ -565,7 +566,7 @@ class JellyfinAPI extends ExternalAPI {
     T extends { includeMediaInfo?: boolean } | undefined = undefined,
   >(
     seriesID: string,
-    seasonID: string,
+    seasonID?: string,
     options?: T
   ): Promise<EpisodeReturn<T>> {
     try {
@@ -573,7 +574,7 @@ class JellyfinAPI extends ExternalAPI {
         `/Shows/${seriesID}/Episodes`,
         {
           params: {
-            seasonId: seasonID,
+            ...(seasonID && { seasonId: seasonID }),
             ...(options?.includeMediaInfo && { fields: 'MediaSources' }),
           },
         }
