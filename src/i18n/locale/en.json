@@ -451,7 +451,7 @@
   "components.PermissionEdit.managerequests": "Manage Requests",
   "components.PermissionEdit.managerequestsDescription": "Grant permission to manage media requests. All requests made by a user with this permission will be automatically approved.",
   "components.PermissionEdit.manualimports": "Manual Imports",
-  "components.PermissionEdit.manualimportsDescription": "Grant permission to retry completed downloads that require manual import in Sonarr or Radarr.",
+  "components.PermissionEdit.manualimportsDescription": "Grant permission to force a manual import attempt for completed downloads in Sonarr or Radarr.",
   "components.PermissionEdit.request": "Request",
   "components.PermissionEdit.request4k": "Request 4K",
   "components.PermissionEdit.request4kDescription": "Grant permission to submit requests for 4K media.",

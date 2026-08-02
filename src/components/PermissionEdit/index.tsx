@@ -74,7 +74,7 @@ export const messages = defineMessages('components.PermissionEdit', {
     'Grant permission to view media issues reported by other users.',
   manualimports: 'Manual Imports',
   manualimportsDescription:
-    'Grant permission to retry completed downloads that require manual import in Sonarr or Radarr.',
+    'Grant permission to force a manual import attempt for completed downloads in Sonarr or Radarr.',
   viewrecent: 'View Recently Added',
   viewrecentDescription:
     'Grant permission to view the list of recently added media.',
