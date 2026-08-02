@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 const STEP_TOLERANCE = 1e-9;
 
-interface NumericMaximumInputProps {
+interface NumericRangeInputProps {
   id: string;
   label: string;
   value?: string;
@@ -13,7 +13,7 @@ interface NumericMaximumInputProps {
   onUpdate: (value?: string) => void;
 }
 
-const NumericMaximumInput = ({
+const NumericRangeInput = ({
   id,
   label,
   value,
@@ -22,7 +22,7 @@ const NumericMaximumInput = ({
   step,
   placeholder,
   onUpdate,
-}: NumericMaximumInputProps): React.JSX.Element => {
+}: NumericRangeInputProps): React.JSX.Element => {
   const [inputValue, setInputValue] = useState(value ?? '');
 
   useEffect(() => {
@@ -54,7 +54,7 @@ const NumericMaximumInput = ({
   };
 
   return (
-    <label htmlFor={id} className="mt-2">
+    <label htmlFor={id} className="mt-2 min-w-0">
       <span className="mb-1 block text-sm text-gray-400">{label}</span>
       <input
         id={id}
@@ -78,4 +78,4 @@ const NumericMaximumInput = ({
   );
 };
 
-export default NumericMaximumInput;
+export default NumericRangeInput;

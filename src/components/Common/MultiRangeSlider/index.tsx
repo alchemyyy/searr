@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 type MultiRangeSliderProps = {
   min: number;
   max: number;
+  step?: number;
   defaultMinValue?: number;
   defaultMaxValue?: number;
   subText?: string;
@@ -15,6 +16,7 @@ type MultiRangeSliderProps = {
 const MultiRangeSlider = ({
   min,
   max,
+  step = 1,
   defaultMinValue,
   defaultMaxValue,
   subText,
@@ -69,12 +71,13 @@ const MultiRangeSlider = ({
           type="range"
           min={min}
           max={max}
+          step={step}
           value={valueMin}
           className={`pointer-events-none absolute h-2 w-full cursor-pointer appearance-none rounded-lg bg-gray-700 ${
             valueMin >= valueMax && valueMin !== min ? 'z-30' : 'z-10'
           }`}
-          onChange={(e) => {
-            const value = Number(e.target.value);
+          onChange={(event) => {
+            const value = Number(event.target.value);
 
             if (value <= valueMax) {
               touched.current = true;
@@ -89,10 +92,10 @@ const MultiRangeSlider = ({
           min={min}
           max={max}
           value={valueMax}
-          step="1"
+          step={step}
           className={`pointer-events-none absolute left-0 right-0 top-0 z-20 h-2 w-full cursor-pointer appearance-none rounded-lg bg-transparent`}
-          onChange={(e) => {
-            const value = Number(e.target.value);
+          onChange={(event) => {
+            const value = Number(event.target.value);
 
             if (value >= valueMin) {
               touched.current = true;
