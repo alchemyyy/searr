@@ -33,6 +33,13 @@ import userSettingsRoutes from './usersettings';
 
 const router = Router();
 
+interface CreateUserRequest {
+  avatar?: string;
+  email?: string;
+  password?: string | null;
+  username?: string;
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const includeIds = [
@@ -167,56 +174,70 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.post(
+router.post<never, unknown, CreateUserRequest>(
   '/',
   isAuthenticated(Permission.MANAGE_USERS),
   async (req, res, next) => {
     try {
       const settings = getSettings();
+      const body: CreateUserRequest = req.body;
 
-      const body = req.body;
-      const email = body.email || body.username;
+      if (!body.username) {
+        return next({ status: 400, message: 'Username is required.' });
+      }
+
+      const submittedEmail: string | undefined = body.email || undefined;
+      const accountIdentifier: string = submittedEmail || body.username;
       const userRepository = getRepository(User);
 
       const existingUser = await userRepository
         .createQueryBuilder('user')
         .where('user.email = :email', {
-          email: email.toLowerCase(),
+          email: accountIdentifier.toLowerCase(),
         })
         .getOne();
 
       if (existingUser) {
         return next({
           status: 409,
-          message: 'User already exists with submitted email.',
+          message: 'User already exists with submitted email or username.',
           errors: ['USER_EXISTS'],
         });
       }
 
-      const passedExplicitPassword = body.password && body.password.length > 0;
-      const avatar = gravatarUrl(email, { default: 'mm', size: 200 });
+      const password: string | undefined =
+        typeof body.password === 'string' && body.password.length > 0
+          ? body.password
+          : undefined;
+      const avatar = gravatarUrl(accountIdentifier, {
+        default: 'mm',
+        size: 200,
+      });
 
-      if (
-        !passedExplicitPassword &&
-        !settings.notifications.agents.email.enabled
-      ) {
+      if (!password && !submittedEmail) {
+        return next({
+          status: 400,
+          message: 'A password is required when no email address is provided.',
+        });
+      }
+
+      if (!password && !settings.notifications.agents.email.enabled) {
         throw new Error('Email notifications must be enabled');
       }
 
       const user = new User({
-        email,
+        email: accountIdentifier,
         avatar: body.avatar ?? avatar,
         username: body.username,
-        password: body.password,
         permissions: settings.main.defaultPermissions,
         plexToken: '',
         userType: UserType.LOCAL,
       });
 
-      if (passedExplicitPassword) {
-        await user?.setPassword(body.password);
+      if (password) {
+        await user.setPassword(password);
       } else {
-        await user?.generatePassword();
+        await user.generatePassword();
       }
 
       await userRepository.save(user);

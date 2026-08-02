@@ -4393,8 +4393,13 @@ paths:
                   example: 'hey@itsme.com'
                 username:
                   type: string
+                password:
+                  type: string
+                  description: Required when no email address is provided.
                 permissions:
                   type: number
+              required:
+                - username
       responses:
         '201':
           description: The created user

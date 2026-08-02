@@ -61,8 +61,7 @@ const messages = defineMessages(
     enableOverride: 'Override Global Limit',
     applanguage: 'Display Language',
     languageDefault: 'Default ({language})',
-    validationemailrequired: 'Email required',
-    validationemailformat: 'Valid email required',
+    validationemailformat: 'Enter a valid email address',
     plexwatchlistsyncmovies: 'Auto-Request Movies',
     plexwatchlistsyncmoviestip:
       'Automatically request movies on your <PlexWatchlistSupportLink>Plex Watchlist</PlexWatchlistSupportLink>',
@@ -97,24 +96,11 @@ const UserGeneralSettings = () => {
   );
 
   const UserGeneralSettingsSchema = Yup.object().shape({
-    email:
-      // email is required for everybody except non-admin jellyfin users
-      user?.id === 1 ||
-      (user?.userType !== UserType.JELLYFIN && user?.userType !== UserType.EMBY)
-        ? Yup.string()
-            .test(
-              'email',
-              intl.formatMessage(messages.validationemailformat),
-              (value) =>
-                !value || validator.isEmail(value, { require_tld: false })
-            )
-            .required(intl.formatMessage(messages.validationemailrequired))
-        : Yup.string().test(
-            'email',
-            intl.formatMessage(messages.validationemailformat),
-            (value) =>
-              !value || validator.isEmail(value, { require_tld: false })
-          ),
+    email: Yup.string().test(
+      'email',
+      intl.formatMessage(messages.validationemailformat),
+      (value) => !value || validator.isEmail(value, { require_tld: false })
+    ),
   });
 
   useEffect(() => {

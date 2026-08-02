@@ -70,17 +70,21 @@ const messages = defineMessages('components.UserList', {
     'Password is too short; should be a minimum of 8 characters',
   usercreatedfailed: 'Something went wrong while creating the user.',
   usercreatedfailedexisting:
-    'The provided email address is already in use by another user.',
+    'The provided email address or username is already in use by another user.',
   usercreatedsuccess: 'User created successfully!',
   username: 'Username',
-  email: 'Email Address',
+  email: 'Email Address (Optional)',
   password: 'Password',
   passwordinfodescription:
     'Configure an application URL and enable email notifications to allow automatic password generation.',
   autogeneratepassword: 'Automatically Generate Password',
   autogeneratepasswordTip: 'Email a server-generated password to the user',
   validationUsername: 'You must provide an username',
-  validationEmail: 'Email required',
+  validationEmail: 'Enter a valid email address',
+  validationEmailForGeneratedPassword:
+    'An email address is required to generate a password',
+  validationPasswordRequired:
+    'Enter a password or enable automatic password generation',
   sortBy: 'Sort by {field}',
   sortByUser: 'Sort by username',
   sortByRequests: 'Sort by number of requests',
@@ -312,20 +316,25 @@ const UserList = () => {
       intl.formatMessage(messages.validationUsername)
     ),
     email: Yup.string()
-      .required()
       .test(
         'email',
         intl.formatMessage(messages.validationEmail),
         (value) => !value || validator.isEmail(value, { require_tld: false })
-      ),
-    password: Yup.lazy((value) =>
-      !value
-        ? Yup.string()
-        : Yup.string().min(
-            8,
-            intl.formatMessage(messages.validationpasswordminchars)
-          )
-    ),
+      )
+      .when('genpassword', {
+        is: true,
+        then: (schema) =>
+          schema.required(
+            intl.formatMessage(messages.validationEmailForGeneratedPassword)
+          ),
+      }),
+    password: Yup.string().when('genpassword', {
+      is: false,
+      then: (schema) =>
+        schema
+          .required(intl.formatMessage(messages.validationPasswordRequired))
+          .min(8, intl.formatMessage(messages.validationpasswordminchars)),
+    }),
   });
 
   if (!data) {
@@ -481,7 +490,6 @@ const UserList = () => {
                   <div className="form-row">
                     <label htmlFor="email" className="text-label">
                       {intl.formatMessage(messages.email)}
-                      <span className="label-required">*</span>
                     </label>
                     <div className="form-input-area">
                       <div className="form-input-field">

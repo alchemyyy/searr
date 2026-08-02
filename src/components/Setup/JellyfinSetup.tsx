@@ -19,12 +19,12 @@ const messages = defineMessages('components.Login', {
   enablessl: 'Use SSL',
   urlBase: 'URL Base',
   email: 'Email Address',
+  optionalEmail: 'Email Address (Optional)',
   emailtooltip:
-    'Address does not need to be associated with your {mediaServerName} instance.',
+    'Optional. Used for notifications and local sign-in; it does not need to be associated with your {mediaServerName} instance.',
   validationhostrequired: '{mediaServerName} URL required',
   validationhostformat: 'Valid URL required',
-  validationemailrequired: 'You must provide a valid email address',
-  validationemailformat: 'Valid email required',
+  validationemailformat: 'Enter a valid email address',
   validationusernamerequired: 'Username required',
   validationpasswordrequired: 'You must provide a password',
   validationservertyperequired: 'Please select a server type',
@@ -92,13 +92,11 @@ function JellyfinSetup({
         intl.formatMessage(messages.validationUrlBaseTrailingSlash),
         (value) => !value || !value.endsWith('/')
       ),
-    email: Yup.string()
-      .test(
-        'email',
-        intl.formatMessage(messages.validationemailformat),
-        (value) => !value || validator.isEmail(value, { require_tld: false })
-      )
-      .required(intl.formatMessage(messages.validationemailrequired)),
+    email: Yup.string().test(
+      'email',
+      intl.formatMessage(messages.validationemailformat),
+      (value) => !value || validator.isEmail(value, { require_tld: false })
+    ),
     username: Yup.string().required(
       intl.formatMessage(messages.validationusernamerequired)
     ),
@@ -261,7 +259,7 @@ function JellyfinSetup({
               htmlFor="email"
               className="text-label inline-flex gap-1 align-middle"
             >
-              {intl.formatMessage(messages.email)}
+              {intl.formatMessage(messages.optionalEmail)}
               <span className="label-tip">
                 <Tooltip
                   content={intl.formatMessage(
