@@ -13,3 +13,12 @@ export function normalizeJellyfinGuid(
 
   return normalized;
 }
+
+export function buildJellyfinMediaURL(
+  hostname: string,
+  mediaID: string
+): string {
+  const normalizedHostname = hostname.replace(/\/+$/, '');
+
+  return `${normalizedHostname}/web/#/details?id=${encodeURIComponent(mediaID)}`;
+}
