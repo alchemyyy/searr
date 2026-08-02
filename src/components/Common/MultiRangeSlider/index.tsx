@@ -22,6 +22,8 @@ const MultiRangeSlider = ({
   onUpdateMax,
 }: MultiRangeSliderProps) => {
   const touched = useRef(false);
+  const onUpdateMinRef = useRef(onUpdateMin);
+  const onUpdateMaxRef = useRef(onUpdateMax);
   const [valueMin, finalValueMin, setValueMin] = useDebouncedState(
     defaultMinValue ?? min
   );
@@ -33,16 +35,21 @@ const MultiRangeSlider = ({
   const maxThumb = ((valueMax - min) / (max - min)) * 100;
 
   useEffect(() => {
-    if (touched.current) {
-      onUpdateMin(finalValueMin);
-    }
-  }, [finalValueMin, onUpdateMin]);
+    onUpdateMinRef.current = onUpdateMin;
+    onUpdateMaxRef.current = onUpdateMax;
+  }, [onUpdateMax, onUpdateMin]);
 
   useEffect(() => {
     if (touched.current) {
-      onUpdateMax(finalValueMax);
+      onUpdateMinRef.current(finalValueMin);
     }
-  }, [finalValueMax, onUpdateMax]);
+  }, [finalValueMin]);
+
+  useEffect(() => {
+    if (touched.current) {
+      onUpdateMaxRef.current(finalValueMax);
+    }
+  }, [finalValueMax]);
 
   useEffect(() => {
     touched.current = false;

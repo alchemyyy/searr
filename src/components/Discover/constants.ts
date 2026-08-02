@@ -119,6 +119,33 @@ export const QueryFilterOptions = z.object({
 
 export type FilterOptions = z.infer<typeof QueryFilterOptions>;
 
+export const FILTER_OPTION_KEYS: (keyof FilterOptions)[] = [
+  'sortBy',
+  'primaryReleaseDateGte',
+  'primaryReleaseDateLte',
+  'firstAirDateGte',
+  'firstAirDateLte',
+  'studio',
+  'genre',
+  'keywords',
+  'excludeKeywords',
+  'language',
+  'withRuntimeGte',
+  'withRuntimeLte',
+  'voteAverageGte',
+  'voteAverageLte',
+  'voteCountGte',
+  'voteCountLte',
+  'watchRegion',
+  'watchProviders',
+  'status',
+  'certification',
+  'certificationGte',
+  'certificationLte',
+  'certificationCountry',
+  'certificationMode',
+];
+
 export const prepareFilterValues = (
   inputValues: ParsedUrlQuery
 ): FilterOptions => {
@@ -227,6 +254,72 @@ export const prepareFilterValues = (
   }
 
   return filterValues;
+};
+
+/** Adapts shared preset values to the filters supported by a media section. */
+export const preparePresetFilterValues = (
+  inputValues: FilterOptions,
+  type: 'movie' | 'tv'
+): FilterOptions => {
+  const filterValues = prepareFilterValues(inputValues);
+
+  switch (type) {
+    case 'movie':
+      filterValues.primaryReleaseDateGte ??= filterValues.firstAirDateGte;
+      filterValues.primaryReleaseDateLte ??= filterValues.firstAirDateLte;
+      delete filterValues.firstAirDateGte;
+      delete filterValues.firstAirDateLte;
+      delete filterValues.status;
+      if (filterValues.sortBy?.startsWith('first_air_date.')) {
+        filterValues.sortBy = filterValues.sortBy.replace(
+          'first_air_date.',
+          'release_date.'
+        );
+      }
+      break;
+    case 'tv':
+      filterValues.firstAirDateGte ??= filterValues.primaryReleaseDateGte;
+      filterValues.firstAirDateLte ??= filterValues.primaryReleaseDateLte;
+      delete filterValues.primaryReleaseDateGte;
+      delete filterValues.primaryReleaseDateLte;
+      delete filterValues.studio;
+      if (filterValues.sortBy?.startsWith('release_date.')) {
+        filterValues.sortBy = filterValues.sortBy.replace(
+          'release_date.',
+          'first_air_date.'
+        );
+      }
+      break;
+  }
+
+  return filterValues;
+};
+
+/** Creates a query update that replaces every active filter with a preset. */
+export const createPresetQueryUpdate = (
+  filterValues: FilterOptions,
+  type: 'movie' | 'tv'
+): Record<string, string | undefined> => {
+  const queryUpdate: Record<string, string | undefined> = {};
+
+  FILTER_OPTION_KEYS.forEach((filterKey) => {
+    queryUpdate[filterKey] = undefined;
+  });
+
+  return Object.assign(
+    queryUpdate,
+    preparePresetFilterValues(filterValues, type)
+  );
+};
+
+/** Compares normalized filter values without depending on object key order. */
+export const filterValuesMatch = (
+  firstValues: FilterOptions,
+  secondValues: FilterOptions
+): boolean => {
+  return FILTER_OPTION_KEYS.every(
+    (filterKey) => firstValues[filterKey] === secondValues[filterKey]
+  );
 };
 
 export const countActiveFilters = (filterValues: FilterOptions): number => {
