@@ -10,6 +10,7 @@ import { getSettings } from '@server/lib/settings';
 import logger from '@server/logger';
 import { DbAwareColumn, resolveDbType } from '@server/utils/DbColumnHelper';
 import { AfterDate } from '@server/utils/dateHelpers';
+import { isPgsql } from '@server/utils/dbType';
 import bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';
@@ -24,12 +25,18 @@ import {
   PrimaryGeneratedColumn,
   RelationCount,
   UpdateDateColumn,
+  type ValueTransformer,
 } from 'typeorm';
 import Issue from './Issue';
 import { MediaRequest } from './MediaRequest';
 import SeasonRequest from './SeasonRequest';
 import { UserPushSubscription } from './UserPushSubscription';
 import { UserSettings } from './UserSettings';
+
+const permissionValueTransformer: ValueTransformer = {
+  from: (value: number | string): number => Number(value),
+  to: (value: number): number => value,
+};
 
 @Entity()
 export class User {
@@ -103,7 +110,11 @@ export class User {
   @Column({ type: 'varchar', nullable: true, select: false })
   public plexToken?: string | null;
 
-  @Column({ type: 'integer', default: 0 })
+  @Column({
+    type: isPgsql ? 'bigint' : 'integer',
+    default: 0,
+    transformer: permissionValueTransformer,
+  })
   public permissions = 0;
 
   @Column()

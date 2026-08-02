@@ -2,7 +2,12 @@ import Button from '@app/components/Common/Button';
 import MultiRangeSlider from '@app/components/Common/MultiRangeSlider';
 import SlideOver from '@app/components/Common/SlideOver';
 import type { FilterOptions } from '@app/components/Discover/constants';
-import { countActiveFilters } from '@app/components/Discover/constants';
+import {
+  countActiveFilters,
+  createPresetQueryUpdate,
+} from '@app/components/Discover/constants';
+import FilterPresetControls from '@app/components/Discover/FilterPresetControls';
+import NumericMaximumInput from '@app/components/Discover/NumericMaximumInput';
 import LanguageSelector from '@app/components/LanguageSelector';
 import {
   CompanySelector,
@@ -45,6 +50,10 @@ const messages = defineMessages('components.Discover.FilterSlideover', {
   voteCount: 'Number of votes between {minValue} and {maxValue}',
   status: 'Status',
   certification: 'Content Rating',
+  maximumRuntime: 'Maximum Runtime (Minutes)',
+  maximumUserScore: 'Maximum User Score',
+  maximumVoteCount: 'Maximum User Vote Count',
+  noMaximum: 'No maximum',
 });
 
 type FilterSlideoverProps = {
@@ -80,6 +89,13 @@ const FilterSlideover = ({
       onClose={() => onClose()}
     >
       <div className="flex flex-col space-y-4">
+        <FilterPresetControls
+          type={type}
+          currentFilters={currentFilters}
+          onApply={(filterValues) => {
+            batchUpdateQueryParams(createPresetQueryUpdate(filterValues, type));
+          }}
+        />
         <div>
           <div className="mb-2 text-lg font-semibold">
             {intl.formatMessage(
@@ -226,22 +242,18 @@ const FilterSlideover = ({
             onUpdateMin={(min) => {
               updateQueryParams(
                 'withRuntimeGte',
-                min !== 0 && Number(currentFilters.withRuntimeLte) !== 400
-                  ? min.toString()
-                  : undefined
+                min !== 0 ? min.toString() : undefined
               );
             }}
             onUpdateMax={(max) => {
               updateQueryParams(
                 'withRuntimeLte',
-                max !== 400 && Number(currentFilters.withRuntimeGte) !== 0
-                  ? max.toString()
-                  : undefined
+                max !== 400 ? max.toString() : undefined
               );
             }}
             defaultMaxValue={
               currentFilters.withRuntimeLte
-                ? Number(currentFilters.withRuntimeLte)
+                ? Math.min(Number(currentFilters.withRuntimeLte), 400)
                 : undefined
             }
             defaultMinValue={
@@ -254,6 +266,15 @@ const FilterSlideover = ({
               maxValue: currentFilters.withRuntimeLte ?? 400,
             })}
           />
+          <NumericMaximumInput
+            id="maximumRuntime"
+            label={intl.formatMessage(messages.maximumRuntime)}
+            value={currentFilters.withRuntimeLte}
+            minimum={Number(currentFilters.withRuntimeGte ?? 0)}
+            step={1}
+            placeholder={intl.formatMessage(messages.noMaximum)}
+            onUpdate={(value) => updateQueryParams('withRuntimeLte', value)}
+          />
         </div>
         <span className="text-lg font-semibold">
           {intl.formatMessage(messages.tmdbuserscore)}
@@ -264,7 +285,7 @@ const FilterSlideover = ({
             max={10}
             defaultMaxValue={
               currentFilters.voteAverageLte
-                ? Number(currentFilters.voteAverageLte)
+                ? Math.min(Number(currentFilters.voteAverageLte), 10)
                 : undefined
             }
             defaultMinValue={
@@ -275,23 +296,29 @@ const FilterSlideover = ({
             onUpdateMin={(min) => {
               updateQueryParams(
                 'voteAverageGte',
-                min !== 1 && Number(currentFilters.voteAverageLte) !== 10
-                  ? min.toString()
-                  : undefined
+                min !== 1 ? min.toString() : undefined
               );
             }}
             onUpdateMax={(max) => {
               updateQueryParams(
                 'voteAverageLte',
-                max !== 10 && Number(currentFilters.voteAverageGte) !== 1
-                  ? max.toString()
-                  : undefined
+                max !== 10 ? max.toString() : undefined
               );
             }}
             subText={intl.formatMessage(messages.ratingText, {
               minValue: currentFilters.voteAverageGte ?? 1,
               maxValue: currentFilters.voteAverageLte ?? 10,
             })}
+          />
+          <NumericMaximumInput
+            id="maximumUserScore"
+            label={intl.formatMessage(messages.maximumUserScore)}
+            value={currentFilters.voteAverageLte}
+            minimum={Number(currentFilters.voteAverageGte ?? 1)}
+            maximum={10}
+            step={0.1}
+            placeholder={intl.formatMessage(messages.noMaximum)}
+            onUpdate={(value) => updateQueryParams('voteAverageLte', value)}
           />
         </div>
         <span className="text-lg font-semibold">
@@ -303,7 +330,7 @@ const FilterSlideover = ({
             max={1000}
             defaultMaxValue={
               currentFilters.voteCountLte
-                ? Number(currentFilters.voteCountLte)
+                ? Math.min(Number(currentFilters.voteCountLte), 1000)
                 : undefined
             }
             defaultMinValue={
@@ -314,23 +341,28 @@ const FilterSlideover = ({
             onUpdateMin={(min) => {
               updateQueryParams(
                 'voteCountGte',
-                min !== 0 && Number(currentFilters.voteCountLte) !== 1000
-                  ? min.toString()
-                  : undefined
+                min !== 0 ? min.toString() : undefined
               );
             }}
             onUpdateMax={(max) => {
               updateQueryParams(
                 'voteCountLte',
-                max !== 1000 && Number(currentFilters.voteCountGte) !== 0
-                  ? max.toString()
-                  : undefined
+                max !== 1000 ? max.toString() : undefined
               );
             }}
             subText={intl.formatMessage(messages.voteCount, {
               minValue: currentFilters.voteCountGte ?? 0,
               maxValue: currentFilters.voteCountLte ?? 1000,
             })}
+          />
+          <NumericMaximumInput
+            id="maximumVoteCount"
+            label={intl.formatMessage(messages.maximumVoteCount)}
+            value={currentFilters.voteCountLte}
+            minimum={Number(currentFilters.voteCountGte ?? 0)}
+            step={1}
+            placeholder={intl.formatMessage(messages.noMaximum)}
+            onUpdate={(value) => updateQueryParams('voteCountLte', value)}
           />
         </div>
         <span className="text-lg font-semibold">

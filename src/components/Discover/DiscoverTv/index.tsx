@@ -9,6 +9,7 @@ import {
 } from '@app/components/Discover/constants';
 import FilterSlideover from '@app/components/Discover/FilterSlideover';
 import useDiscover from '@app/hooks/useDiscover';
+import { useDefaultFilterPreset } from '@app/hooks/useFilterPresets';
 import { useUpdateQueryParams } from '@app/hooks/useUpdateQueryParams';
 import ErrorPage from '@app/pages/_error';
 import defineMessages from '@app/utils/defineMessages';
@@ -49,6 +50,7 @@ const DiscoverTv = () => {
   const router = useRouter();
   const [showFilters, setShowFilters] = useState(false);
   const preparedFilters = prepareFilterValues(router.query);
+  useDefaultFilterPreset('tv', preparedFilters);
   const updateQueryParams = useUpdateQueryParams({});
 
   const {
