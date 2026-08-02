@@ -7,7 +7,7 @@ import {
   createPresetQueryUpdate,
 } from '@app/components/Discover/constants';
 import FilterPresetControls from '@app/components/Discover/FilterPresetControls';
-import NumericMaximumInput from '@app/components/Discover/NumericMaximumInput';
+import NumericRangeInput from '@app/components/Discover/NumericRangeInput';
 import LanguageSelector from '@app/components/LanguageSelector';
 import {
   CompanySelector,
@@ -25,7 +25,56 @@ import {
 import defineMessages from '@app/utils/defineMessages';
 import { XCircleIcon } from '@heroicons/react/24/outline';
 import Datepicker from '@seerr-team/react-tailwindcss-datepicker';
+import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
+
+const RUNTIME_MINIMUM = 0;
+const RUNTIME_DEFAULT_MAXIMUM = 400;
+const RUNTIME_STEP = 1;
+const USER_SCORE_MINIMUM = 1;
+const USER_SCORE_MAXIMUM = 10;
+const USER_SCORE_STEP = 0.1;
+const VOTE_COUNT_MINIMUM = 0;
+const VOTE_COUNT_DEFAULT_MAXIMUM = 1000;
+const VOTE_COUNT_STEP = 1;
+
+/** Parses a finite numeric query filter. */
+const parseNumericFilter = (value?: string): number | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : undefined;
+};
+
+/** Expands a slider for typed values without shrinking after thumb updates. */
+const useExpandableSliderMaximum = (
+  defaultMaximum: number,
+  minimumValue?: string,
+  maximumValue?: string
+): number => {
+  const parsedMinimum = parseNumericFilter(minimumValue);
+  const parsedMaximum = parseNumericFilter(maximumValue);
+  const requiredMaximum = Math.max(
+    defaultMaximum,
+    parsedMinimum ?? defaultMaximum,
+    parsedMaximum ?? defaultMaximum
+  );
+  const [sliderMaximum, setSliderMaximum] = useState(requiredMaximum);
+
+  useEffect(() => {
+    const filtersCleared =
+      minimumValue === undefined && maximumValue === undefined;
+    setSliderMaximum((currentMaximum) =>
+      filtersCleared
+        ? defaultMaximum
+        : Math.max(currentMaximum, requiredMaximum)
+    );
+  }, [defaultMaximum, maximumValue, minimumValue, requiredMaximum]);
+
+  return Math.max(sliderMaximum, requiredMaximum);
+};
 
 const messages = defineMessages('components.Discover.FilterSlideover', {
   filters: 'Filters',
@@ -51,8 +100,12 @@ const messages = defineMessages('components.Discover.FilterSlideover', {
   status: 'Status',
   certification: 'Content Rating',
   maximumRuntime: 'Maximum Runtime (Minutes)',
+  minimumRuntime: 'Minimum Runtime (Minutes)',
   maximumUserScore: 'Maximum User Score',
+  minimumUserScore: 'Minimum User Score',
   maximumVoteCount: 'Maximum User Vote Count',
+  minimumVoteCount: 'Minimum User Vote Count',
+  noMinimum: 'No minimum',
   noMaximum: 'No maximum',
 });
 
@@ -78,6 +131,26 @@ const FilterSlideover = ({
     type === 'movie' ? 'primaryReleaseDateGte' : 'firstAirDateGte';
   const dateLte =
     type === 'movie' ? 'primaryReleaseDateLte' : 'firstAirDateLte';
+  const runtimeMinimumValue = parseNumericFilter(currentFilters.withRuntimeGte);
+  const runtimeMaximumValue = parseNumericFilter(currentFilters.withRuntimeLte);
+  const userScoreMinimumValue = parseNumericFilter(
+    currentFilters.voteAverageGte
+  );
+  const userScoreMaximumValue = parseNumericFilter(
+    currentFilters.voteAverageLte
+  );
+  const voteCountMinimumValue = parseNumericFilter(currentFilters.voteCountGte);
+  const voteCountMaximumValue = parseNumericFilter(currentFilters.voteCountLte);
+  const runtimeSliderMaximum = useExpandableSliderMaximum(
+    RUNTIME_DEFAULT_MAXIMUM,
+    currentFilters.withRuntimeGte,
+    currentFilters.withRuntimeLte
+  );
+  const voteCountSliderMaximum = useExpandableSliderMaximum(
+    VOTE_COUNT_DEFAULT_MAXIMUM,
+    currentFilters.voteCountGte,
+    currentFilters.voteCountLte
+  );
 
   return (
     <SlideOver
@@ -237,133 +310,160 @@ const FilterSlideover = ({
         </span>
         <div className="relative z-0">
           <MultiRangeSlider
-            min={0}
-            max={400}
-            onUpdateMin={(min) => {
+            min={RUNTIME_MINIMUM}
+            max={runtimeSliderMaximum}
+            step={RUNTIME_STEP}
+            onUpdateMin={(minimumValue) => {
               updateQueryParams(
                 'withRuntimeGte',
-                min !== 0 ? min.toString() : undefined
+                minimumValue !== RUNTIME_MINIMUM
+                  ? minimumValue.toString()
+                  : undefined
               );
             }}
-            onUpdateMax={(max) => {
+            onUpdateMax={(maximumValue) => {
               updateQueryParams(
                 'withRuntimeLte',
-                max !== 400 ? max.toString() : undefined
+                maximumValue !== runtimeSliderMaximum
+                  ? maximumValue.toString()
+                  : undefined
               );
             }}
-            defaultMaxValue={
-              currentFilters.withRuntimeLte
-                ? Math.min(Number(currentFilters.withRuntimeLte), 400)
-                : undefined
-            }
-            defaultMinValue={
-              currentFilters.withRuntimeGte
-                ? Number(currentFilters.withRuntimeGte)
-                : undefined
-            }
+            defaultMaxValue={runtimeMaximumValue}
+            defaultMinValue={runtimeMinimumValue}
             subText={intl.formatMessage(messages.runtimeText, {
-              minValue: currentFilters.withRuntimeGte ?? 0,
-              maxValue: currentFilters.withRuntimeLte ?? 400,
+              minValue: currentFilters.withRuntimeGte ?? RUNTIME_MINIMUM,
+              maxValue: currentFilters.withRuntimeLte ?? runtimeSliderMaximum,
             })}
           />
-          <NumericMaximumInput
-            id="maximumRuntime"
-            label={intl.formatMessage(messages.maximumRuntime)}
-            value={currentFilters.withRuntimeLte}
-            minimum={Number(currentFilters.withRuntimeGte ?? 0)}
-            step={1}
-            placeholder={intl.formatMessage(messages.noMaximum)}
-            onUpdate={(value) => updateQueryParams('withRuntimeLte', value)}
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <NumericRangeInput
+              id="minimumRuntime"
+              label={intl.formatMessage(messages.minimumRuntime)}
+              value={currentFilters.withRuntimeGte}
+              minimum={RUNTIME_MINIMUM}
+              maximum={runtimeMaximumValue}
+              step={RUNTIME_STEP}
+              placeholder={intl.formatMessage(messages.noMinimum)}
+              onUpdate={(value) => updateQueryParams('withRuntimeGte', value)}
+            />
+            <NumericRangeInput
+              id="maximumRuntime"
+              label={intl.formatMessage(messages.maximumRuntime)}
+              value={currentFilters.withRuntimeLte}
+              minimum={runtimeMinimumValue ?? RUNTIME_MINIMUM}
+              step={RUNTIME_STEP}
+              placeholder={intl.formatMessage(messages.noMaximum)}
+              onUpdate={(value) => updateQueryParams('withRuntimeLte', value)}
+            />
+          </div>
         </div>
         <span className="text-lg font-semibold">
           {intl.formatMessage(messages.tmdbuserscore)}
         </span>
         <div className="relative z-0">
           <MultiRangeSlider
-            min={1}
-            max={10}
-            defaultMaxValue={
-              currentFilters.voteAverageLte
-                ? Math.min(Number(currentFilters.voteAverageLte), 10)
-                : undefined
-            }
-            defaultMinValue={
-              currentFilters.voteAverageGte
-                ? Number(currentFilters.voteAverageGte)
-                : undefined
-            }
-            onUpdateMin={(min) => {
+            min={USER_SCORE_MINIMUM}
+            max={USER_SCORE_MAXIMUM}
+            step={USER_SCORE_STEP}
+            defaultMaxValue={userScoreMaximumValue}
+            defaultMinValue={userScoreMinimumValue}
+            onUpdateMin={(minimumValue) => {
               updateQueryParams(
                 'voteAverageGte',
-                min !== 1 ? min.toString() : undefined
+                minimumValue !== USER_SCORE_MINIMUM
+                  ? minimumValue.toString()
+                  : undefined
               );
             }}
-            onUpdateMax={(max) => {
+            onUpdateMax={(maximumValue) => {
               updateQueryParams(
                 'voteAverageLte',
-                max !== 10 ? max.toString() : undefined
+                maximumValue !== USER_SCORE_MAXIMUM
+                  ? maximumValue.toString()
+                  : undefined
               );
             }}
             subText={intl.formatMessage(messages.ratingText, {
-              minValue: currentFilters.voteAverageGte ?? 1,
-              maxValue: currentFilters.voteAverageLte ?? 10,
+              minValue: currentFilters.voteAverageGte ?? USER_SCORE_MINIMUM,
+              maxValue: currentFilters.voteAverageLte ?? USER_SCORE_MAXIMUM,
             })}
           />
-          <NumericMaximumInput
-            id="maximumUserScore"
-            label={intl.formatMessage(messages.maximumUserScore)}
-            value={currentFilters.voteAverageLte}
-            minimum={Number(currentFilters.voteAverageGte ?? 1)}
-            maximum={10}
-            step={0.1}
-            placeholder={intl.formatMessage(messages.noMaximum)}
-            onUpdate={(value) => updateQueryParams('voteAverageLte', value)}
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <NumericRangeInput
+              id="minimumUserScore"
+              label={intl.formatMessage(messages.minimumUserScore)}
+              value={currentFilters.voteAverageGte}
+              minimum={USER_SCORE_MINIMUM}
+              maximum={userScoreMaximumValue ?? USER_SCORE_MAXIMUM}
+              step={USER_SCORE_STEP}
+              placeholder={intl.formatMessage(messages.noMinimum)}
+              onUpdate={(value) => updateQueryParams('voteAverageGte', value)}
+            />
+            <NumericRangeInput
+              id="maximumUserScore"
+              label={intl.formatMessage(messages.maximumUserScore)}
+              value={currentFilters.voteAverageLte}
+              minimum={userScoreMinimumValue ?? USER_SCORE_MINIMUM}
+              maximum={USER_SCORE_MAXIMUM}
+              step={USER_SCORE_STEP}
+              placeholder={intl.formatMessage(messages.noMaximum)}
+              onUpdate={(value) => updateQueryParams('voteAverageLte', value)}
+            />
+          </div>
         </div>
         <span className="text-lg font-semibold">
           {intl.formatMessage(messages.tmdbuservotecount)}
         </span>
         <div className="relative z-0">
           <MultiRangeSlider
-            min={0}
-            max={1000}
-            defaultMaxValue={
-              currentFilters.voteCountLte
-                ? Math.min(Number(currentFilters.voteCountLte), 1000)
-                : undefined
-            }
-            defaultMinValue={
-              currentFilters.voteCountGte
-                ? Number(currentFilters.voteCountGte)
-                : undefined
-            }
-            onUpdateMin={(min) => {
+            min={VOTE_COUNT_MINIMUM}
+            max={voteCountSliderMaximum}
+            step={VOTE_COUNT_STEP}
+            defaultMaxValue={voteCountMaximumValue}
+            defaultMinValue={voteCountMinimumValue}
+            onUpdateMin={(minimumValue) => {
               updateQueryParams(
                 'voteCountGte',
-                min !== 0 ? min.toString() : undefined
+                minimumValue !== VOTE_COUNT_MINIMUM
+                  ? minimumValue.toString()
+                  : undefined
               );
             }}
-            onUpdateMax={(max) => {
+            onUpdateMax={(maximumValue) => {
               updateQueryParams(
                 'voteCountLte',
-                max !== 1000 ? max.toString() : undefined
+                maximumValue !== voteCountSliderMaximum
+                  ? maximumValue.toString()
+                  : undefined
               );
             }}
             subText={intl.formatMessage(messages.voteCount, {
-              minValue: currentFilters.voteCountGte ?? 0,
-              maxValue: currentFilters.voteCountLte ?? 1000,
+              minValue: currentFilters.voteCountGte ?? VOTE_COUNT_MINIMUM,
+              maxValue: currentFilters.voteCountLte ?? voteCountSliderMaximum,
             })}
           />
-          <NumericMaximumInput
-            id="maximumVoteCount"
-            label={intl.formatMessage(messages.maximumVoteCount)}
-            value={currentFilters.voteCountLte}
-            minimum={Number(currentFilters.voteCountGte ?? 0)}
-            step={1}
-            placeholder={intl.formatMessage(messages.noMaximum)}
-            onUpdate={(value) => updateQueryParams('voteCountLte', value)}
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <NumericRangeInput
+              id="minimumVoteCount"
+              label={intl.formatMessage(messages.minimumVoteCount)}
+              value={currentFilters.voteCountGte}
+              minimum={VOTE_COUNT_MINIMUM}
+              maximum={voteCountMaximumValue}
+              step={VOTE_COUNT_STEP}
+              placeholder={intl.formatMessage(messages.noMinimum)}
+              onUpdate={(value) => updateQueryParams('voteCountGte', value)}
+            />
+            <NumericRangeInput
+              id="maximumVoteCount"
+              label={intl.formatMessage(messages.maximumVoteCount)}
+              value={currentFilters.voteCountLte}
+              minimum={voteCountMinimumValue ?? VOTE_COUNT_MINIMUM}
+              step={VOTE_COUNT_STEP}
+              placeholder={intl.formatMessage(messages.noMaximum)}
+              onUpdate={(value) => updateQueryParams('voteCountLte', value)}
+            />
+          </div>
         </div>
         <span className="text-lg font-semibold">
           {intl.formatMessage(messages.streamingservices)}
