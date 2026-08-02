@@ -1,6 +1,6 @@
 import { MediaRequestStatus, MediaType } from '@server/constants/media';
 import { UserType } from '@server/constants/user';
-import { getRepository } from '@server/datasource';
+import { getRepository, isPgsql } from '@server/datasource';
 import { Watchlist } from '@server/entity/Watchlist';
 import type { QuotaResponse } from '@server/interfaces/api/userInterfaces';
 import PreparedEmail from '@server/lib/email';
@@ -24,12 +24,18 @@ import {
   PrimaryGeneratedColumn,
   RelationCount,
   UpdateDateColumn,
+  type ValueTransformer,
 } from 'typeorm';
 import Issue from './Issue';
 import { MediaRequest } from './MediaRequest';
 import SeasonRequest from './SeasonRequest';
 import { UserPushSubscription } from './UserPushSubscription';
 import { UserSettings } from './UserSettings';
+
+const permissionValueTransformer: ValueTransformer = {
+  from: (value: number | string): number => Number(value),
+  to: (value: number): number => value,
+};
 
 @Entity()
 export class User {
@@ -101,7 +107,11 @@ export class User {
   @Column({ type: 'varchar', nullable: true, select: false })
   public plexToken?: string | null;
 
-  @Column({ type: 'integer', default: 0 })
+  @Column({
+    type: isPgsql ? 'bigint' : 'integer',
+    default: 0,
+    transformer: permissionValueTransformer,
+  })
   public permissions = 0;
 
   @Column()

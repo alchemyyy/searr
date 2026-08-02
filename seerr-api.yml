@@ -40,6 +40,8 @@ tags:
     description: Collection of media to watch later
   - name: blocklist
     description: Blocklisted media from discovery page.
+  - name: filter-presets
+    description: Global result filter presets and section defaults.
 servers:
   - url: '{server}/api/v1'
     variables:
@@ -2126,6 +2128,89 @@ components:
         - enabled
         - title
         - data
+    FilterValues:
+      type: object
+      additionalProperties: false
+      properties:
+        sortBy:
+          type: string
+        primaryReleaseDateGte:
+          type: string
+        primaryReleaseDateLte:
+          type: string
+        firstAirDateGte:
+          type: string
+        firstAirDateLte:
+          type: string
+        studio:
+          type: string
+        genre:
+          type: string
+        keywords:
+          type: string
+        excludeKeywords:
+          type: string
+        language:
+          type: string
+        withRuntimeGte:
+          type: string
+        withRuntimeLte:
+          type: string
+        voteAverageGte:
+          type: string
+        voteAverageLte:
+          type: string
+        voteCountGte:
+          type: string
+        voteCountLte:
+          type: string
+        watchRegion:
+          type: string
+        watchProviders:
+          type: string
+        status:
+          type: string
+        certification:
+          type: string
+        certificationGte:
+          type: string
+        certificationLte:
+          type: string
+        certificationCountry:
+          type: string
+        certificationMode:
+          type: string
+          enum: [exact, range]
+    FilterPreset:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+        filters:
+          $ref: '#/components/schemas/FilterValues'
+        isDefaultMovie:
+          type: boolean
+          readOnly: true
+        isDefaultTv:
+          type: boolean
+          readOnly: true
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - id
+        - name
+        - filters
+        - isDefaultMovie
+        - isDefaultTv
     WatchProviderRegion:
       type: object
       properties:
@@ -8273,6 +8358,113 @@ paths:
                   message:
                     type: string
                     example: Unable to retrieve TV certifications.
+  /filter-presets:
+    get:
+      summary: Get global filter presets
+      description: Returns the shared filter preset pool for all authenticated users.
+      tags:
+        - filter-presets
+      responses:
+        '200':
+          description: Filter presets returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FilterPreset'
+    post:
+      summary: Create a global filter preset
+      description: Creates a shared preset. Requires the Manage Filter Presets permission.
+      tags:
+        - filter-presets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - filters
+              properties:
+                name:
+                  type: string
+                  maxLength: 100
+                filters:
+                  $ref: '#/components/schemas/FilterValues'
+      responses:
+        '201':
+          description: Filter preset created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterPreset'
+        '400':
+          description: Invalid preset name or filter values
+        '403':
+          description: The user cannot manage filter presets
+        '409':
+          description: A preset with the requested name already exists
+  /filter-presets/default/{mediaType}:
+    put:
+      summary: Set a section's default filter preset
+      description: Sets or clears the global default for movies or series. Requires Admin permission.
+      tags:
+        - filter-presets
+      parameters:
+        - in: path
+          name: mediaType
+          required: true
+          schema:
+            type: string
+            enum: [movie, tv]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - presetId
+              properties:
+                presetId:
+                  type: integer
+                  nullable: true
+      responses:
+        '200':
+          description: Default filter preset updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/FilterPreset'
+                nullable: true
+        '400':
+          description: Invalid media type or the preset has no applicable filters
+        '403':
+          description: The user is not an administrator
+        '404':
+          description: Filter preset not found
+  /filter-presets/{presetId}:
+    delete:
+      summary: Delete a global filter preset
+      description: Deletes a shared preset. Requires the Manage Filter Presets permission.
+      tags:
+        - filter-presets
+      parameters:
+        - in: path
+          name: presetId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Filter preset deleted
+        '403':
+          description: The user cannot manage filter presets
+        '404':
+          description: Filter preset not found
   /overrideRule:
     get:
       summary: Get override rules

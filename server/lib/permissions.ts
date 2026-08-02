@@ -30,6 +30,7 @@ export enum Permission {
   MANAGE_BLOCKLIST = 268435456,
   MANUAL_IMPORT = 536870912,
   VIEW_BLOCKLIST = 1073741824,
+  MANAGE_FILTER_PRESETS = 2147483648,
 }
 
 export interface PermissionCheckOptions {
@@ -50,26 +51,30 @@ export const hasPermission = (
   value: number,
   options: PermissionCheckOptions = { type: 'and' }
 ): boolean => {
-  let total = 0;
-
   // If we are not checking any permissions, bail out and return true
   if (permissions === 0) {
     return true;
   }
 
   if (Array.isArray(permissions)) {
-    if (value & Permission.ADMIN) {
+    if (hasPermission(Permission.ADMIN, value)) {
       return true;
     }
     switch (options.type) {
       case 'and':
-        return permissions.every((permission) => !!(value & permission));
+        return permissions.every((permission) =>
+          hasPermission(permission, value)
+        );
       case 'or':
-        return permissions.some((permission) => !!(value & permission));
+        return permissions.some((permission) =>
+          hasPermission(permission, value)
+        );
     }
-  } else {
-    total = permissions;
   }
 
-  return !!(value & Permission.ADMIN) || !!(value & total);
+  // JavaScript bitwise operators truncate values to 32 bits
+  const hasAdminPermission = Math.floor(value / Permission.ADMIN) % 2 === 1;
+  const hasRequestedPermission = Math.floor(value / permissions) % 2 === 1;
+
+  return hasAdminPermission || hasRequestedPermission;
 };

@@ -88,6 +88,9 @@ export const messages = defineMessages('components.PermissionEdit', {
   viewblocklistedItems: 'View blocklisted media.',
   viewblocklistedItemsDescription:
     'Grant permission to view blocklisted media.',
+  manageFilterPresets: 'Manage Filter Presets',
+  manageFilterPresetsDescription:
+    'Grant permission to create and delete global result filter presets.',
 });
 
 interface PermissionEditProps {
@@ -363,6 +366,12 @@ export const PermissionEdit = ({
           permission: Permission.VIEW_BLOCKLIST,
         },
       ],
+    },
+    {
+      id: 'manage-filter-presets',
+      name: intl.formatMessage(messages.manageFilterPresets),
+      description: intl.formatMessage(messages.manageFilterPresetsDescription),
+      permission: Permission.MANAGE_FILTER_PRESETS,
     },
   ];
 
