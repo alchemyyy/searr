@@ -1,5 +1,9 @@
 * text eol=lf
 
+# cmd.exe misresolves call/goto labels in LF-only batch files
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 #
 ## These files are binary and should be left untouched
 #
