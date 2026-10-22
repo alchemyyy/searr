@@ -18,6 +18,12 @@ export interface TvdbLoginResponse {
   token: string;
 }
 
+export interface TvdbGenre {
+  id: number;
+  name: string;
+  slug: string;
+}
+
 interface TvDetailsAliases {
   language: string;
   name: string;
@@ -49,6 +55,7 @@ export interface TvdbTvDetails {
   isOrderRandomized: boolean;
   lastUpdated: Date;
   averageRuntime: number;
+  genres: TvdbGenre[];
   seasons: TvdbSeasonDetails[];
   episodes: TvdbEpisode[];
 }

@@ -1,12 +1,17 @@
+import type { TvShowDetails } from '@server/api/provider';
 import type {
   TmdbNetwork,
   TmdbSeasonWithEpisodes,
-  TmdbTvDetails,
   TmdbTvEpisodeResult,
   TmdbTvRatingResult,
   TmdbTvSeasonResult,
 } from '@server/api/themoviedb/interfaces';
+import {
+  MetadataTagProvider,
+  MetadataTagType,
+} from '@server/entity/BackendSelectionRule';
 import type Media from '@server/entity/Media';
+import type { MetadataTag } from '@server/interfaces/api/backendSelectionInterfaces';
 import type { Video } from './Movie';
 import type {
   Cast,
@@ -75,6 +80,7 @@ export interface TvDetails {
   episodeRunTime: number[];
   firstAirDate?: string;
   genres: Genre[];
+  metadataTags: MetadataTag[];
   homepage: string;
   inProduction: boolean;
   relatedVideos?: Video[];
@@ -161,7 +167,7 @@ export const mapNetwork = (network: TmdbNetwork): TvNetwork => ({
 });
 
 export const mapTvDetails = (
-  show: TmdbTvDetails,
+  show: TvShowDetails,
   media?: Media,
   userWatchlist?: boolean
 ): TvDetails => ({
@@ -172,6 +178,20 @@ export const mapTvDetails = (
     id: genre.id,
     name: genre.name,
   })),
+  metadataTags: [
+    ...show.genres.map((genre) => ({
+      provider: MetadataTagProvider.TMDB,
+      type: MetadataTagType.GENRE,
+      id: genre.id,
+      name: genre.name,
+    })),
+    ...(show.providerGenres ?? []).map((genre) => ({
+      provider: genre.provider,
+      type: MetadataTagType.GENRE,
+      id: genre.id,
+      name: genre.name,
+    })),
+  ],
   relatedVideos: mapVideos(show.videos),
   homepage: show.homepage,
   id: show.id,

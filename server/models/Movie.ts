@@ -3,7 +3,12 @@ import type {
   TmdbMovieReleaseResult,
   TmdbProductionCompany,
 } from '@server/api/themoviedb/interfaces';
+import {
+  MetadataTagProvider,
+  MetadataTagType,
+} from '@server/entity/BackendSelectionRule';
 import type Media from '@server/entity/Media';
+import type { MetadataTag } from '@server/interfaces/api/backendSelectionInterfaces';
 import type {
   Cast,
   Crew,
@@ -44,6 +49,7 @@ export interface MovieDetails {
   backdropPath?: string;
   budget: number;
   genres: Genre[];
+  metadataTags: MetadataTag[];
   homepage?: string;
   originalLanguage: string;
   originalTitle: string;
@@ -109,6 +115,12 @@ export const mapMovieDetails = (
   adult: movie.adult,
   budget: movie.budget,
   genres: movie.genres,
+  metadataTags: movie.genres.map((genre) => ({
+    provider: MetadataTagProvider.TMDB,
+    type: MetadataTagType.GENRE,
+    id: genre.id,
+    name: genre.name,
+  })),
   relatedVideos: mapVideos(movie.videos),
   originalLanguage: movie.original_language,
   originalTitle: movie.original_title,
