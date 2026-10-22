@@ -1,5 +1,5 @@
 import ExternalAPI from '@server/api/externalapi';
-import type { TvShowProvider } from '@server/api/provider';
+import type { TvShowDetails, TvShowProvider } from '@server/api/provider';
 import TheMovieDb from '@server/api/themoviedb';
 import type {
   TmdbSeasonWithEpisodes,
@@ -11,10 +11,12 @@ import {
   convertTmdbLanguageToTvdbWithFallback,
   type TvdbBaseResponse,
   type TvdbEpisode,
+  type TvdbGenre,
   type TvdbLoginResponse,
   type TvdbSeasonDetails,
   type TvdbTvDetails,
 } from '@server/api/tvdb/interfaces';
+import { MetadataTagProvider } from '@server/entity/BackendSelectionRule';
 import cacheManager, { type AvailableCacheIds } from '@server/lib/cache';
 import logger from '@server/logger';
 
@@ -109,6 +111,21 @@ class Tvdb extends ExternalAPI implements TvShowProvider {
     }
   }
 
+  public async getGenres(): Promise<TvdbGenre[]> {
+    await this.refreshToken();
+    const response = await this.get<TvdbBaseResponse<TvdbGenre[]>>(
+      '/genres',
+      {
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+        },
+      },
+      Tvdb.DEFAULT_CACHE_TTL
+    );
+
+    return response.data;
+  }
+
   async login(): Promise<TvdbLoginResponse> {
     let body: { apiKey: string; pin?: string } = {
       apiKey: 'd00d9ecb-a9d0-4860-958a-74b14a041405',
@@ -139,7 +156,7 @@ class Tvdb extends ExternalAPI implements TvShowProvider {
   }: {
     tvdbId: number;
     language?: string;
-  }): Promise<TmdbTvDetails> {
+  }): Promise<TvShowDetails> {
     try {
       const tmdbTvShow = await this.tmdb.getShowByTvdbId({
         tvdbId: tvdbId,
@@ -171,7 +188,7 @@ class Tvdb extends ExternalAPI implements TvShowProvider {
   }: {
     tvId: number;
     language?: string;
-  }): Promise<TmdbTvDetails> {
+  }): Promise<TvShowDetails> {
     try {
       const tmdbTvShow = await this.tmdb.getTvShow({ tvId, language });
 
@@ -237,18 +254,23 @@ class Tvdb extends ExternalAPI implements TvShowProvider {
   private async enrichTmdbShowWithTvdbData(
     tmdbTvShow: TmdbTvDetails,
     tvdbId: ValidTvdbId
-  ): Promise<TmdbTvDetails> {
+  ): Promise<TvShowDetails> {
     try {
       await this.refreshToken();
 
       const tvdbData = await this.fetchTvdbShowData(tvdbId);
       const seasons = this.processSeasons(tvdbData);
+      const providerGenres = (tvdbData.genres ?? []).map((genre) => ({
+        provider: MetadataTagProvider.TVDB,
+        id: genre.id,
+        name: genre.name,
+      }));
 
-      if (!seasons.length) {
-        return tmdbTvShow;
-      }
-
-      return { ...tmdbTvShow, seasons };
+      return {
+        ...tmdbTvShow,
+        ...(seasons.length > 0 ? { seasons } : {}),
+        providerGenres,
+      };
     } catch (error) {
       logger.error(
         `Failed to enrich TMDB show with TVDB data: ${error.message} token: ${this.token}`

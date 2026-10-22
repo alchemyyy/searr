@@ -2,6 +2,17 @@ import type {
   TmdbSeasonWithEpisodes,
   TmdbTvDetails,
 } from '@server/api/themoviedb/interfaces';
+import type { MetadataTagProvider } from '@server/entity/BackendSelectionRule';
+
+export interface ProviderGenre {
+  provider: MetadataTagProvider;
+  id: number;
+  name: string;
+}
+
+export interface TvShowDetails extends TmdbTvDetails {
+  providerGenres?: ProviderGenre[];
+}
 
 export interface TvShowProvider {
   getTvShow({
@@ -10,7 +21,7 @@ export interface TvShowProvider {
   }: {
     tvId: number;
     language?: string;
-  }): Promise<TmdbTvDetails>;
+  }): Promise<TvShowDetails>;
   getTvSeason({
     tvId,
     seasonNumber,
@@ -26,5 +37,5 @@ export interface TvShowProvider {
   }: {
     tvdbId: number;
     language?: string;
-  }): Promise<TmdbTvDetails>;
+  }): Promise<TvShowDetails>;
 }

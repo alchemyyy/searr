@@ -1,3 +1,4 @@
+import BackendSelectionRule from '@server/entity/BackendSelectionRule';
 import { Blocklist } from '@server/entity/Blocklist';
 import DiscoverSlider from '@server/entity/DiscoverSlider';
 import FilterPreset from '@server/entity/FilterPreset';
@@ -26,6 +27,7 @@ import { DataSource } from 'typeorm';
 const DB_SSL_PREFIX = 'DB_SSL_';
 
 const entities = [
+  BackendSelectionRule,
   Blocklist,
   DiscoverSlider,
   FilterPreset,

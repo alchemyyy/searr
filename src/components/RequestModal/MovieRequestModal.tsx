@@ -3,11 +3,12 @@ import Modal from '@app/components/Common/Modal';
 import type { RequestOverrides } from '@app/components/RequestModal/AdvancedRequester';
 import AdvancedRequester from '@app/components/RequestModal/AdvancedRequester';
 import QuotaDisplay from '@app/components/RequestModal/QuotaDisplay';
+import useBackendSelectionRecommendation from '@app/hooks/useBackendSelectionRecommendation';
 import useToasts from '@app/hooks/useToasts';
 import { useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
-import { MediaStatus } from '@server/constants/media';
+import { MediaStatus, MediaType } from '@server/constants/media';
 import type { MediaRequest } from '@server/entity/MediaRequest';
 import type { NonFunctionProperties } from '@server/interfaces/api/common';
 import type { QuotaResponse } from '@server/interfaces/api/userInterfaces';
@@ -63,6 +64,16 @@ const MovieRequestModal = ({
   });
   const intl = useIntl();
   const { user, hasPermission } = useUser();
+  const canSelectBackend = hasPermission(
+    [Permission.REQUEST_ADVANCED, Permission.MANAGE_REQUESTS],
+    { type: 'or' }
+  );
+  const { recommendation } = useBackendSelectionRecommendation({
+    mediaType: MediaType.MOVIE,
+    is4k,
+    tags: data?.metadataTags,
+    enabled: !editRequest && canSelectBackend,
+  });
   const { data: quota } = useSWR<QuotaResponse>(
     user &&
       (!requestOverrides?.user?.id || hasPermission(Permission.MANAGE_USERS))
@@ -318,6 +329,10 @@ const MovieRequestModal = ({
     ],
     { type: 'or' }
   );
+  const requiresBackendSelection =
+    canSelectBackend &&
+    recommendation?.serverId === null &&
+    requestOverrides?.server === undefined;
 
   return (
     <Modal
@@ -327,6 +342,7 @@ const MovieRequestModal = ({
       onOk={sendRequest}
       okDisabled={
         isUpdating ||
+        requiresBackendSelection ||
         (quota?.movie.restricted && !requestOverrides?.ignoreQuota)
       }
       title={intl.formatMessage(
@@ -370,6 +386,7 @@ const MovieRequestModal = ({
           tmdbId={tmdbId}
           type="movie"
           is4k={is4k}
+          recommendedServerId={recommendation?.serverId}
           quota={quota}
           onChange={(overrides) => {
             setRequestOverrides(overrides);

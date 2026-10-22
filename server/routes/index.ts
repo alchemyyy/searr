@@ -29,6 +29,7 @@ import restartFlag from '@server/utils/restartFlag';
 import { isPerson } from '@server/utils/typeHelpers';
 import { Router } from 'express';
 import authRoutes from './auth';
+import backendSelectionRoutes from './backendSelection';
 import blocklistRoutes from './blocklist';
 import calendarRoutes from './calendar';
 import collectionRoutes from './collection';
@@ -182,6 +183,11 @@ router.use('/service', isAuthenticated(), serviceRoutes);
 router.use('/issue', isAuthenticated(), issueRoutes);
 router.use('/issueComment', isAuthenticated(), issueCommentRoutes);
 router.use('/auth', authRoutes);
+router.use(
+  '/backend-selection-rules',
+  isAuthenticated(),
+  backendSelectionRoutes
+);
 router.use('/overrideRule', isAuthenticated(), overrideRuleRoutes);
 
 router.get('/regions', isAuthenticated(), async (req, res, next) => {

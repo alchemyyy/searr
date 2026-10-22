@@ -42,6 +42,8 @@ tags:
     description: Blocklisted media from discovery page.
   - name: filter-presets
     description: Global result filter presets and section defaults.
+  - name: backend-selection
+    description: Ordered metadata rules used to preselect request backends.
 servers:
   - url: '{server}/api/v1'
     variables:
@@ -963,6 +965,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Genre'
+        metadataTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetadataTag'
         homepage:
           type: string
         relatedVideos:
@@ -1177,6 +1183,10 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Genre'
+        metadataTags:
+          type: array
+          items:
+            $ref: '#/components/schemas/MetadataTag'
         homepage:
           type: string
         inProduction:
@@ -2234,6 +2244,82 @@ components:
         - filters
         - isDefaultMovie
         - isDefaultTv
+    MetadataTagReference:
+      type: object
+      additionalProperties: false
+      properties:
+        provider:
+          type: string
+          enum: [tmdb, tvdb]
+        type:
+          type: string
+          enum: [genre]
+        id:
+          type: integer
+          minimum: 0
+      required:
+        - provider
+        - type
+        - id
+    MetadataTag:
+      allOf:
+        - $ref: '#/components/schemas/MetadataTagReference'
+        - type: object
+          properties:
+            name:
+              type: string
+          required:
+            - name
+    BackendSelectionRuleInput:
+      type: object
+      additionalProperties: false
+      properties:
+        mediaType:
+          type: string
+          enum: [movie, tv]
+        serviceId:
+          type: integer
+          minimum: 0
+        ruleType:
+          type: string
+          enum: [allow, block]
+        matchType:
+          type: string
+          enum: [any, all]
+        tags:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/MetadataTagReference'
+      required:
+        - mediaType
+        - serviceId
+        - ruleType
+        - matchType
+        - tags
+    BackendSelectionRule:
+      allOf:
+        - $ref: '#/components/schemas/BackendSelectionRuleInput'
+        - type: object
+          properties:
+            id:
+              type: integer
+              readOnly: true
+            position:
+              type: integer
+              readOnly: true
+            createdAt:
+              type: string
+              format: date-time
+              readOnly: true
+            updatedAt:
+              type: string
+              format: date-time
+              readOnly: true
+          required:
+            - id
+            - position
     WatchProviderRegion:
       type: object
       properties:
@@ -8575,6 +8661,216 @@ paths:
           description: The user cannot manage filter presets
         '404':
           description: Filter preset not found
+  /backend-selection-rules:
+    get:
+      summary: Get backend selection rules
+      description: Returns all movie and series backend defaults in evaluation order. Requires Admin permission.
+      tags:
+        - backend-selection
+      responses:
+        '200':
+          description: Backend selection rules returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackendSelectionRule'
+        '403':
+          description: The user is not an administrator
+    post:
+      summary: Create a backend selection rule
+      description: Adds a backend default at the end of its media type list. Requires Admin permission.
+      tags:
+        - backend-selection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackendSelectionRuleInput'
+      responses:
+        '201':
+          description: Backend selection rule created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackendSelectionRule'
+        '400':
+          description: Invalid rule or backend
+        '403':
+          description: The user is not an administrator
+  /backend-selection-rules/tags:
+    get:
+      summary: Get selectable external genre tags
+      description: Returns provider-qualified genre tags for a movie or series rule. Requires Admin permission.
+      tags:
+        - backend-selection
+      parameters:
+        - in: query
+          name: mediaType
+          required: true
+          schema:
+            type: string
+            enum: [movie, tv]
+      responses:
+        '200':
+          description: Genre tag catalog returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MetadataTag'
+                  unavailableProviders:
+                    type: array
+                    items:
+                      type: string
+                      enum: [tmdb, tvdb]
+                required:
+                  - tags
+                  - unavailableProviders
+        '400':
+          description: Invalid media type
+        '403':
+          description: The user is not an administrator
+  /backend-selection-rules/recommendation:
+    post:
+      summary: Recommend a request backend
+      description: Evaluates ordered backend defaults against provider-qualified metadata genres.
+      tags:
+        - backend-selection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                mediaType:
+                  type: string
+                  enum: [movie, tv]
+                is4k:
+                  type: boolean
+                tags:
+                  type: array
+                  maxItems: 200
+                  items:
+                    $ref: '#/components/schemas/MetadataTagReference'
+              required:
+                - mediaType
+                - is4k
+                - tags
+      responses:
+        '200':
+          description: Backend recommendation returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  serverId:
+                    type: integer
+                    nullable: true
+                  matchedRuleId:
+                    type: integer
+                    nullable: true
+                required:
+                  - serverId
+                  - matchedRuleId
+        '400':
+          description: Invalid metadata tags
+  /backend-selection-rules/order/{mediaType}:
+    put:
+      summary: Reorder backend selection rules
+      description: Replaces the complete ordered rule list for one media type. Requires Admin permission.
+      tags:
+        - backend-selection
+      parameters:
+        - in: path
+          name: mediaType
+          required: true
+          schema:
+            type: string
+            enum: [movie, tv]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                ruleIds:
+                  type: array
+                  items:
+                    type: integer
+              required:
+                - ruleIds
+      responses:
+        '200':
+          description: Backend selection rules reordered
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackendSelectionRule'
+        '400':
+          description: The complete ordered list was not supplied
+        '403':
+          description: The user is not an administrator
+  /backend-selection-rules/{ruleId}:
+    put:
+      summary: Update a backend selection rule
+      tags:
+        - backend-selection
+      parameters:
+        - in: path
+          name: ruleId
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackendSelectionRuleInput'
+      responses:
+        '200':
+          description: Backend selection rule updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackendSelectionRule'
+        '400':
+          description: Invalid rule or backend
+        '403':
+          description: The user is not an administrator
+        '404':
+          description: Rule not found
+    delete:
+      summary: Delete a backend selection rule
+      tags:
+        - backend-selection
+      parameters:
+        - in: path
+          name: ruleId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Backend selection rule deleted
+        '403':
+          description: The user is not an administrator
+        '404':
+          description: Rule not found
   /overrideRule:
     get:
       summary: Get override rules

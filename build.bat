@@ -24,6 +24,12 @@ if errorlevel 1 (
     goto :failure
 )
 
+where robocopy >nul 2>&1
+if errorlevel 1 (
+    echo ERROR: robocopy is not installed or not in PATH.
+    goto :failure
+)
+
 echo [1/5] Installing dependencies...
 call %PNPM_COMMAND% --config.engine-strict=false install --frozen-lockfile
 if errorlevel 1 (
@@ -91,12 +97,13 @@ if errorlevel 1 goto :package_failure
 copy /y "run.bat" "%STAGE%\" >nul
 if errorlevel 1 goto :package_failure
 
-xcopy ".next" "%STAGE%\.next\" /e /i /q /y >nul
-if errorlevel 1 goto :package_failure
-xcopy "dist" "%STAGE%\dist\" /e /i /q /y >nul
-if errorlevel 1 goto :package_failure
-xcopy "public" "%STAGE%\public\" /e /i /q /y >nul
-if errorlevel 1 goto :package_failure
+rem Robocopy materializes Next.js package junctions without xcopy's memory failure
+robocopy ".next" "%STAGE%\.next" /e /r:2 /w:1 /xd "%CD%\.next\cache" /nfl /ndl /njh /njs /np
+if errorlevel 8 goto :package_failure
+robocopy "dist" "%STAGE%\dist" /e /r:2 /w:1 /xj /nfl /ndl /njh /njs /np
+if errorlevel 8 goto :package_failure
+robocopy "public" "%STAGE%\public" /e /r:2 /w:1 /xj /nfl /ndl /njh /njs /np
+if errorlevel 8 goto :package_failure
 
 mkdir "%STAGE%\config"
 if errorlevel 1 goto :package_failure

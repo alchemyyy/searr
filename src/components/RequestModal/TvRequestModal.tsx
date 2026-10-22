@@ -5,13 +5,18 @@ import type { RequestOverrides } from '@app/components/RequestModal/AdvancedRequ
 import AdvancedRequester from '@app/components/RequestModal/AdvancedRequester';
 import QuotaDisplay from '@app/components/RequestModal/QuotaDisplay';
 import SearchByNameModal from '@app/components/RequestModal/SearchByNameModal';
+import useBackendSelectionRecommendation from '@app/hooks/useBackendSelectionRecommendation';
 import useSettings from '@app/hooks/useSettings';
 import useToasts from '@app/hooks/useToasts';
 import { useUser } from '@app/hooks/useUser';
 import globalMessages from '@app/i18n/globalMessages';
 import defineMessages from '@app/utils/defineMessages';
 import { ANIME_KEYWORD_ID } from '@server/api/themoviedb/constants';
-import { MediaRequestStatus, MediaStatus } from '@server/constants/media';
+import {
+  MediaRequestStatus,
+  MediaStatus,
+  MediaType,
+} from '@server/constants/media';
 import type { MediaRequest } from '@server/entity/MediaRequest';
 import type SeasonRequest from '@server/entity/SeasonRequest';
 import type { NonFunctionProperties } from '@server/interfaces/api/common';
@@ -82,6 +87,16 @@ const TvRequestModal = ({
   );
   const intl = useIntl();
   const { user, hasPermission } = useUser();
+  const canSelectBackend = hasPermission(
+    [Permission.REQUEST_ADVANCED, Permission.MANAGE_REQUESTS],
+    { type: 'or' }
+  );
+  const { recommendation } = useBackendSelectionRecommendation({
+    mediaType: MediaType.TV,
+    is4k,
+    tags: data?.metadataTags,
+    enabled: !editRequest && canSelectBackend,
+  });
   const [searchModal, setSearchModal] = useState<{
     show: boolean;
   }>({
@@ -375,6 +390,11 @@ const TvRequestModal = ({
   };
 
   const isOwner = editRequest && editRequest.requestedBy.id === user?.id;
+  const requiresBackendSelection =
+    !editRequest &&
+    canSelectBackend &&
+    recommendation?.serverId === null &&
+    requestOverrides?.server === undefined;
 
   return data && !error && !data.externalIds.tvdbId && searchModal.show ? (
     <SearchByNameModal
@@ -434,7 +454,8 @@ const TvRequestModal = ({
                   )
       }
       okDisabled={
-        editRequest
+        requiresBackendSelection ||
+        (editRequest
           ? false
           : !settings.currentSettings.partialRequestsEnabled &&
               quota?.tv.limit &&
@@ -443,7 +464,7 @@ const TvRequestModal = ({
             ? true
             : unrequestedSeasons.length === 0 ||
               (settings.currentSettings.partialRequestsEnabled &&
-                selectedSeasons.length === 0)
+                selectedSeasons.length === 0))
       }
       okButtonType={
         editRequest
@@ -722,6 +743,9 @@ const TvRequestModal = ({
           type="tv"
           tmdbId={tmdbId}
           is4k={is4k}
+          recommendedServerId={
+            editRequest ? undefined : recommendation?.serverId
+          }
           isAnime={data?.keywords.some(
             (keyword) => keyword.id === ANIME_KEYWORD_ID
           )}
